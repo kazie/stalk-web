@@ -1,39 +1,41 @@
-# stalk-web
+# Test Coverage for Stalk Web
 
-This template should help get you started developing with Vue 3 in Vite.
+This directory contains tests for the Stalk Web application. The tests are written using Vitest and Vue Test Utils.
 
-## Recommended IDE Setup
+## Test Structure
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+The tests are organized by component:
 
-## Type Support for `.vue` Imports in TS
+- `src/__tests__/App.spec.ts`: Tests for the main App component
+- `src/components/__tests__/MapComponent.spec.ts`: Tests for the MapComponent
+- `src/views/__tests__/HomeView.spec.ts`: Tests for the HomeView component
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+## Running Tests
 
-## Customize configuration
+To run the tests, use the following command:
 
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
-npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
-npm run dev
-```
-
-### Type-Check, Compile and Minify for Production
-
-```sh
-npm run build
-```
-
-### Run Unit Tests with [Vitest](https://vitest.dev/)
-
-```sh
+```bash
 npm run test:unit
 ```
+
+## Test Coverage
+
+To run the tests with coverage, use the following command:
+
+```bash
+npm run test:coverage
+```
+
+This will generate a coverage report in the `coverage` directory.
+
+## Adding New Tests
+
+When adding new components to the application, follow these patterns to create corresponding test files:
+
+1. Create a `__tests__` directory in the same directory as the component
+2. Create a test file with the same name as the component, but with `.spec.ts` extension
+3. Use the existing tests as a template for writing new tests
+
+## Mocking Dependencies
+
+For components that depend on external libraries (like Leaflet in MapComponent), use Vitest's mocking capabilities to mock the dependencies. See `MapComponent.spec.ts` for an example.
