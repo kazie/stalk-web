@@ -1,4 +1,27 @@
-# Test Coverage for Stalk Web
+# Stalk Web
+
+This repository contains the Stalk Web application. The application is built using Vue.js and TypeScript.
+
+## CI/CD
+
+This project uses GitHub Actions for continuous integration and Dependabot for dependency management.
+
+### GitHub Actions
+
+Two workflows are configured:
+
+1. **CI**: Runs on pushes to main and pull requests. It runs tests and uploads coverage reports to Codecov.
+
+### Dependabot
+
+Dependabot is configured to:
+
+- Check for npm dependency updates weekly
+- Group minor and patch updates for production dependencies
+- Group minor and patch updates for development dependencies
+- Keep major updates separate (as they might contain breaking changes)
+
+## Tests
 
 This directory contains tests for the Stalk Web application. The tests are written using Vitest and Vue Test Utils.
 
