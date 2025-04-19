@@ -9,30 +9,30 @@ vi.mock('../views/HomeView.vue', () => ({
     name: 'HomeView',
     render() {
       return h('div', { class: 'mock-home-view' }, 'Mocked Home View')
-    }
-  }
+    },
+  },
 }))
 
 describe('App', () => {
   it('renders properly with shallow mount', () => {
     const wrapper = shallowMount(App)
-    
+
     // With shallowMount, HomeView should be stubbed
     expect(wrapper.findComponent({ name: 'HomeView' }).exists()).toBe(true)
   })
-  
+
   it('contains HomeView when fully mounted', () => {
     // For this test, we'll use a different approach since we mocked the component
     // We'll check if the component tries to render HomeView
-    
+
     const wrapper = mount(App, {
       global: {
         stubs: {
-          HomeView: true
-        }
-      }
+          HomeView: true,
+        },
+      },
     })
-    
+
     // Check if HomeView is included in the template
     expect(wrapper.html()).toContain('home-view-stub')
   })

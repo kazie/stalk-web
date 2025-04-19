@@ -6,30 +6,30 @@ import MapComponent from '../MapComponent.vue'
 vi.mock('leaflet', () => {
   const latLngMock = vi.fn((lat, lng) => ({
     lat,
-    lng
+    lng,
   }))
-  
+
   const mapMock = vi.fn(() => ({
     setView: vi.fn().mockReturnThis(),
-    remove: vi.fn()
+    remove: vi.fn(),
   }))
-  
+
   const tileLayerMock = vi.fn(() => ({
-    addTo: vi.fn()
+    addTo: vi.fn(),
   }))
-  
+
   const markerMock = vi.fn(() => ({
     addTo: vi.fn().mockReturnThis(),
-    bindPopup: vi.fn().mockReturnThis()
+    bindPopup: vi.fn().mockReturnThis(),
   }))
-  
+
   const iconMock = vi.fn(() => ({
     iconUrl: '',
     iconSize: [],
     iconAnchor: [],
-    popupAnchor: []
+    popupAnchor: [],
   }))
-  
+
   return {
     default: {
       map: mapMock,
@@ -39,11 +39,11 @@ vi.mock('leaflet', () => {
       latLng: latLngMock,
       Marker: {
         prototype: {
-          options: {}
-        }
-      }
+          options: {},
+        },
+      },
     },
-    latLng: latLngMock
+    latLng: latLngMock,
   }
 })
 
@@ -68,7 +68,7 @@ describe('MapComponent', () => {
   it('renders properly', async () => {
     const wrapper = mount(MapComponent)
     await flushPromises()
-    
+
     // Check if the component renders correctly
     expect(wrapper.find('.map-container').exists()).toBe(true)
     expect(wrapper.find('h2').text()).toBe('Stalking...')
@@ -78,7 +78,7 @@ describe('MapComponent', () => {
   it('displays the coordinates correctly', async () => {
     const wrapper = mount(MapComponent)
     await flushPromises()
-    
+
     // The coordinates should be displayed in the paragraph
     const coordsText = wrapper.find('p').text()
     expect(coordsText).toContain('59.32721756211293')
@@ -88,13 +88,13 @@ describe('MapComponent', () => {
   it('initializes the map when mounted', async () => {
     const wrapper = mount(MapComponent)
     await flushPromises()
-    
+
     // The map should be initialized
     const L = await import('leaflet')
     expect(L.default.map).toHaveBeenCalled()
     expect(L.default.tileLayer).toHaveBeenCalledWith(
       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      expect.any(Object)
+      expect.any(Object),
     )
     expect(L.default.marker).toHaveBeenCalled()
   })
@@ -102,13 +102,13 @@ describe('MapComponent', () => {
   it('cleans up the map when unmounted', async () => {
     const wrapper = mount(MapComponent)
     await flushPromises()
-    
+
     // Unmount the component
     wrapper.unmount()
-    
+
     // The map should be removed
     const L = await import('leaflet')
-    const mapInstance = L.default.map.mock.results[0].value
+    const mapInstance = vi.mocked(L.default.map).mock.results[0].value
     expect(mapInstance.remove).toHaveBeenCalled()
   })
 })

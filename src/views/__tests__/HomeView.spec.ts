@@ -10,8 +10,8 @@ vi.mock('../../components/MapComponent.vue', () => ({
     name: 'MapComponent',
     render() {
       return h('div', { class: 'mock-map-component' }, 'Mocked Map Component')
-    }
-  }
+    },
+  },
 }))
 
 describe('HomeView', () => {
@@ -32,9 +32,9 @@ describe('HomeView', () => {
     const wrapper = mount(HomeView, {
       global: {
         stubs: {
-          MapComponent: true
-        }
-      }
+          MapComponent: true,
+        },
+      },
     })
 
     // Check if MapComponent is included in the template
