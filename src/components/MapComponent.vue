@@ -66,15 +66,21 @@ onUnmounted(() => {
 .map-container {
   width: 100%;
   max-width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   margin: 0 auto;
-  padding: 20px;
+  padding: 10px;
+  box-sizing: border-box;
 }
 
 .map {
-  height: 90vh;
-  width: 95vw;
+  height: calc(100vh - 100px);
+  width: 100%;
+  max-width: 100%;
   border-radius: 8px;
   border: 1px solid #ccc;
+  flex: 1;
 }
 
 h2 {
