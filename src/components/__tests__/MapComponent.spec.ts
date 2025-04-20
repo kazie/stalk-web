@@ -2,11 +2,28 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import MapComponent from '../MapComponent.vue'
 
+// Mock the marker service
+vi.mock('@/services/markerService', () => {
+  const markers = vi.fn(() => [
+    { name: 'Test Marker 1', latitude: 40.7128, longitude: -74.006 },
+    { name: 'Test Marker 2', latitude: 51.5074, longitude: -0.1278 },
+  ])
+
+  return {
+    markers: { value: markers() },
+    isLoading: { value: false },
+    error: { value: null },
+    startFetching: vi.fn(),
+    stopFetching: vi.fn(),
+    fetchMarkerData: vi.fn(),
+  }
+})
+
 // Mock Leaflet
 vi.mock('leaflet', () => {
-  const latLngMock = vi.fn((lat, lng) => ({
-    lat,
-    lng,
+  const latLngMock = vi.fn((latitude, longitude) => ({
+    lat: latitude,
+    lng: longitude,
   }))
 
   const mapMock = vi.fn(() => ({
@@ -75,17 +92,26 @@ describe('MapComponent', () => {
     expect(wrapper.find('.map').exists()).toBe(true)
   })
 
-  it('displays the coordinates correctly', async () => {
+  it('displays the markers list correctly', async () => {
     const wrapper = mount(MapComponent)
     await flushPromises()
 
-    // The coordinates should be displayed in the paragraph
-    const coordsText = wrapper.find('p').text()
-    expect(coordsText).toContain('59.32721756211293')
-    expect(coordsText).toContain('18.107101093216905')
+    // The markers should be displayed in the list
+    expect(wrapper.find('.markers-list').exists()).toBe(true)
+    expect(wrapper.find('h3').text()).toBe('Current Markers (2)')
+
+    const markerItems = wrapper.findAll('.markers-list li')
+    expect(markerItems.length).toBe(2)
+    expect(markerItems[0].text()).toContain('Test Marker 1')
+    expect(markerItems[0].text()).toContain('40.71280')
+    expect(markerItems[0].text()).toContain('-74.00600')
+
+    expect(markerItems[1].text()).toContain('Test Marker 2')
+    expect(markerItems[1].text()).toContain('51.50740')
+    expect(markerItems[1].text()).toContain('-0.12780')
   })
 
-  it('initializes the map when mounted', async () => {
+  it('initializes the map and starts fetching when mounted', async () => {
     const wrapper = mount(MapComponent)
     await flushPromises()
 
@@ -96,10 +122,13 @@ describe('MapComponent', () => {
       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       expect.any(Object),
     )
-    expect(L.default.marker).toHaveBeenCalled()
+
+    // Should start fetching data
+    const markerService = await import('@/services/markerService')
+    expect(markerService.startFetching).toHaveBeenCalled()
   })
 
-  it('cleans up the map when unmounted', async () => {
+  it('cleans up the map and stops fetching when unmounted', async () => {
     const wrapper = mount(MapComponent)
     await flushPromises()
 
@@ -110,5 +139,9 @@ describe('MapComponent', () => {
     const L = await import('leaflet')
     const mapInstance = vi.mocked(L.default.map).mock.results[0].value
     expect(mapInstance.remove).toHaveBeenCalled()
+
+    // Should stop fetching data
+    const markerService = await import('@/services/markerService')
+    expect(markerService.stopFetching).toHaveBeenCalled()
   })
 })
