@@ -8,7 +8,6 @@ import {
   error,
   startFetching,
   stopFetching,
-  type MarkerData,
 } from '@/services/markerService'
 
 // Create a map of icons based on names
@@ -88,7 +87,7 @@ const updateMapMarkers = () => {
 onMounted(() => {
   if (mapContainer.value) {
     // Create the map instance with a default view
-    map = L.map(mapContainer.value).setView([0, 0], 2)
+    map = L.map(mapContainer.value).setView([62, 15], 4)
 
     // Add the OpenStreetMap tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

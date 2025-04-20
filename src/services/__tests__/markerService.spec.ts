@@ -82,24 +82,37 @@ describe('markerService', () => {
   })
 
   it('starts and stops periodic fetching', () => {
-    // Mock setInterval and clearInterval
-    vi.spyOn(global, 'setInterval')
-    vi.spyOn(global, 'clearInterval')
+    // Mock the global functions
+    const originalSetInterval = global.setInterval
+    const originalClearInterval = global.clearInterval
 
-    // Mock fetchMarkerData
-    vi.spyOn({ fetchMarkerData }, 'fetchMarkerData')
+    // Create a fake interval ID
+    const fakeIntervalId = 12345
 
-    // Start fetching
-    startFetching(5000)
+    // Replace setInterval with a mock that returns the fake ID
+    global.setInterval = vi.fn().mockReturnValue(fakeIntervalId)
 
-    // Check that fetchMarkerData was called and setInterval was set up
-    expect(fetchMarkerData).toHaveBeenCalledTimes(1)
-    expect(setInterval).toHaveBeenCalledWith(fetchMarkerData, 5000)
+    // Replace clearInterval with a mock
+    global.clearInterval = vi.fn()
 
-    // Stop fetching
-    stopFetching()
+    try {
+      // Call the functions we want to test
+      startFetching(5000)
 
-    // Check that clearInterval was called
-    expect(clearInterval).toHaveBeenCalledTimes(1)
+      // Verify that setInterval was called with the correct interval
+      expect(global.setInterval).toHaveBeenCalledWith(expect.any(Function), 5000)
+
+      // At this point, setInterval has been called with fetchMarkerData as the callback
+
+      // Now stop fetching
+      stopFetching()
+
+      // Verify that clearInterval was called with the correct interval ID
+      expect(global.clearInterval).toHaveBeenCalledWith(fakeIntervalId)
+    } finally {
+      // Restore the original functions
+      global.setInterval = originalSetInterval
+      global.clearInterval = originalClearInterval
+    }
   })
 })

@@ -4,15 +4,19 @@ import MapComponent from '../MapComponent.vue'
 
 // Mock the marker service
 vi.mock('@/services/markerService', () => {
-  const markers = vi.fn(() => [
-    { name: 'Test Marker 1', latitude: 40.7128, longitude: -74.006 },
-    { name: 'Test Marker 2', latitude: 51.5074, longitude: -0.1278 },
-  ])
+  // Create a simple reactive object that mimics a Vue ref
+  const createMockRef = <T>(value: T) => ({
+    value,
+    __v_isRef: true as const,
+  })
 
   return {
-    markers: { value: markers() },
-    isLoading: { value: false },
-    error: { value: null },
+    markers: createMockRef([
+      { name: 'Test Marker 1', latitude: 40.7128, longitude: -74.006 },
+      { name: 'Test Marker 2', latitude: 51.5074, longitude: -0.1278 },
+    ]),
+    isLoading: createMockRef(false),
+    error: createMockRef(null),
     startFetching: vi.fn(),
     stopFetching: vi.fn(),
     fetchMarkerData: vi.fn(),
