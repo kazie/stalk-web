@@ -2,13 +2,7 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import {
-  markers,
-  isLoading,
-  error,
-  startFetching,
-  stopFetching,
-} from '@/services/markerService'
+import { markers, isLoading, error, startFetching, stopFetching } from '@/services/markerService'
 import { getRelativeTime } from '@/services/timeTool.ts'
 
 // Create a map of icons based on names
@@ -131,7 +125,9 @@ onUnmounted(() => {
         <ul>
           <li v-for="marker in markers" :key="marker.name">
             <strong>{{ marker.name }}</strong
-            >: <code>[ {{ marker.latitude.toFixed(5) }}, {{ marker.longitude.toFixed(5) }} ]</code> @ {{getRelativeTime(marker.timestamp)}}
+            >:
+            <code>[ {{ marker.latitude.toFixed(5) }}, {{ marker.longitude.toFixed(5) }} ]</code> @
+            {{ getRelativeTime(marker.timestamp) }}
           </li>
         </ul>
       </div>

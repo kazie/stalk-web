@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import MapComponent from '../MapComponent.vue'
+import type { MarkerData } from '@/services/markerService.ts'
 
 // Mock the marker service
 vi.mock('@/services/markerService', () => {
@@ -11,9 +12,19 @@ vi.mock('@/services/markerService', () => {
   })
 
   return {
-    markers: createMockRef([
-      { name: 'Test Marker 1', latitude: 40.7128, longitude: -74.006 },
-      { name: 'Test Marker 2', latitude: 51.5074, longitude: -0.1278 },
+    markers: createMockRef<Array<MarkerData>>([
+      {
+        name: 'Test Marker 1',
+        latitude: 40.7128,
+        longitude: -74.006,
+        timestamp: '2025-01-01T00:00:00.000Z',
+      },
+      {
+        name: 'Test Marker 2',
+        latitude: 51.5074,
+        longitude: -0.1278,
+        timestamp: '2025-01-01T00:00:00.000Z',
+      },
     ]),
     isLoading: createMockRef(false),
     error: createMockRef(null),
