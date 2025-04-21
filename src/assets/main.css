@@ -37,3 +37,7 @@ a,
     overflow: hidden;
   }
 }
+
+.rounded-icon {
+  border-radius: 50%
+}

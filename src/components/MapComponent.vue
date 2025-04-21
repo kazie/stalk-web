@@ -22,7 +22,7 @@ const buildAvatarUrl = (name: string) => {
 const getIconForName = (name: string): L.Icon => {
   // Default icon
   const kazieIcon = L.icon({
-    className: 'kazie-icon',
+    className: 'rounded-icon',
     iconUrl: 'https://avatars.githubusercontent.com/u/1390887',
     iconSize: [50, 50],
     iconAnchor: [25, 25],
@@ -234,10 +234,6 @@ h3 {
   100% {
     opacity: 0.6;
   }
-}
-
-.kazie-icon img {
-  border-radius: 50%
 }
 
 </style>
