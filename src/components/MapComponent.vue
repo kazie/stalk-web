@@ -5,26 +5,38 @@ import L from 'leaflet'
 import { markers, isLoading, error, startFetching, stopFetching } from '@/services/markerService'
 import { getRelativeTime } from '@/services/timeTool.ts'
 
+const buildAvatarUrl = (name: string) => {
+  const url = new URL('https://ui-avatars.com/api/');
+  const params = new URLSearchParams({
+    name: name,
+    background: 'random',
+    format: 'svg',
+    rounded: 'true'
+  });
+  url.search = params.toString();
+  return url.toString();
+};
+
+
 // Create a map of icons based on names
 const getIconForName = (name: string): L.Icon => {
   // Default icon
-  const defaultIcon = L.icon({
+  const kazieIcon = L.icon({
+    className: 'kazie-icon',
     iconUrl: 'https://avatars.githubusercontent.com/u/1390887',
     iconSize: [50, 50],
     iconAnchor: [25, 25],
     popupAnchor: [0, -25],
   })
 
-  // You can add more icons based on name patterns
-  // This is just an example - you can expand this logic
-  if (name.toLowerCase().includes('kazie')) {
-    return defaultIcon
+  if (name.toLowerCase() === 'kazie') {
+    return kazieIcon
   }
 
   // For other names, you could use different icons
   // For example, using initials or other patterns
   return L.icon({
-    iconUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+    iconUrl: buildAvatarUrl(name),
     iconSize: [50, 50],
     iconAnchor: [25, 25],
     popupAnchor: [0, -25],
@@ -223,4 +235,9 @@ h3 {
     opacity: 0.6;
   }
 }
+
+.kazie-icon img {
+  border-radius: 50%
+}
+
 </style>
