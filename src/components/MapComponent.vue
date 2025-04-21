@@ -9,6 +9,7 @@ import {
   startFetching,
   stopFetching,
 } from '@/services/markerService'
+import { getRelativeTime } from '@/services/timeTool.ts'
 
 // Create a map of icons based on names
 const getIconForName = (name: string): L.Icon => {
@@ -70,11 +71,16 @@ const updateMapMarkers = () => {
       const marker = L.marker(position, { icon }).addTo(markersLayer!)
 
       // Add a popup to the marker
-      marker.bindPopup(`<b>${markerData.name}</b>`)
+      marker.bindPopup(`<b>${markerData.name}</b> ${getRelativeTime(markerData.timestamp)}`)
     })
 
+    if (markers.value.length == 1) {
+      // For a single marker, set a moderate zoom level (not too close)
+      const marker = markers.value[0]
+      map.setView([marker.latitude, marker.longitude], 15)
+    }
     // Fit the map to show all markers
-    if (bounds.isValid()) {
+    else if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [50, 50] })
     }
   } else if (map) {
@@ -125,7 +131,7 @@ onUnmounted(() => {
         <ul>
           <li v-for="marker in markers" :key="marker.name">
             <strong>{{ marker.name }}</strong
-            >: {{ marker.latitude.toFixed(5) }}, {{ marker.longitude.toFixed(5) }}
+            >: <code>[ {{ marker.latitude.toFixed(5) }}, {{ marker.longitude.toFixed(5) }} ]</code> @ {{getRelativeTime(marker.timestamp)}}
           </li>
         </ul>
       </div>

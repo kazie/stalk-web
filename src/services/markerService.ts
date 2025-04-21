@@ -5,6 +5,7 @@ export interface MarkerData {
   name: string
   latitude: number
   longitude: number
+  timestamp: string
 }
 
 // Get the API endpoint from environment variables
@@ -41,7 +42,7 @@ export const fetchMarkerData = async (): Promise<void> => {
 let fetchInterval: number | null = null
 
 // Start periodic fetching
-export const startFetching = (intervalMs = 30000): void => {
+export const startFetching = (intervalMs = 10000): void => {
   // Initial fetch
   fetchMarkerData()
 
