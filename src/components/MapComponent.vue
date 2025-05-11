@@ -2,35 +2,51 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import { markers, isLoading, error, startFetching, stopFetching } from '@/services/markerService'
+import {
+  currentName,
+  error,
+  isLoading,
+  markers,
+  startFetching,
+  startFetchingByName,
+  stopFetching,
+} from '@/services/markerService'
 import { getRelativeTime } from '@/services/timeTool.ts'
+import { useRouter } from 'vue-router'
+
+// Define props
+const props = defineProps<{
+  name?: string
+}>()
+
+const router = useRouter()
 
 const buildAvatarUrl = (name: string) => {
-  const url = new URL('https://ui-avatars.com/api/');
+  const url = new URL('https://ui-avatars.com/api/')
   const params = new URLSearchParams({
     name: name,
     background: 'random',
     format: 'svg',
-    rounded: 'true'
-  });
-  url.search = params.toString();
-  return url.toString();
-};
-
+    rounded: 'true',
+  })
+  url.search = params.toString()
+  return url.toString()
+}
 
 // Create a map of icons based on names
 const getIconForName = (name: string): L.Icon => {
-  // Default icon
-  const kazieIcon = L.icon({
-    className: 'rounded-icon',
-    iconUrl: 'https://avatars.githubusercontent.com/u/1390887',
-    iconSize: [50, 50],
-    iconAnchor: [25, 25],
-    popupAnchor: [0, -25],
-  })
-
   if (name.toLowerCase() === 'kazie') {
-    return kazieIcon
+    return L.icon({
+      className: 'rounded-icon',
+      iconUrl: 'https://avatars.githubusercontent.com/u/1390887',
+      iconSize: [50, 50],
+      iconAnchor: [25, 25],
+      popupAnchor: [0, -25],
+    })
+  }
+
+  if (name.toLowerCase() === 'kaichan') {
+    // FIXKE: need a nice pic
   }
 
   // For other names, you could use different icons
@@ -95,6 +111,38 @@ const updateMapMarkers = () => {
   }
 }
 
+// Watch for changes in the name prop
+watch(
+  () => props.name,
+  (newName) => {
+    // Stop any existing interval first
+    stopFetching()
+
+    if (newName) {
+      // Start periodic fetching for the specific name
+      startFetchingByName(newName)
+    } else {
+      // Start fetching all markers
+      startFetching()
+    }
+  },
+  { immediate: true },
+)
+
+// Navigate to a specific name using Vue Router
+const navigateTo = (name: string | null) => {
+  if (name) {
+    router.push(`/${name}`)
+  } else {
+    router.push('/')
+  }
+}
+
+// Expose methods for testing
+defineExpose({
+  navigateTo,
+})
+
 // Initialize the map when the component is mounted
 onMounted(() => {
   if (mapContainer.value) {
@@ -106,9 +154,6 @@ onMounted(() => {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map)
-
-    // Start fetching marker data
-    startFetching()
   }
 })
 
@@ -127,16 +172,26 @@ onUnmounted(() => {
 
 <template>
   <div class="map-container">
-    <h2>Stalking... <span v-if="isLoading" class="loading-indicator">Loading...</span></h2>
+    <h2>
+      Stalking... {{ currentName ? currentName : 'everyone'
+      }}<span v-if="isLoading" class="loading-indicator">Loading...</span>
+    </h2>
     <div v-if="error" class="error-message">{{ error }}</div>
     <div ref="mapContainer" class="map"></div>
     <div class="markers-info">
       <div v-if="markers.length === 0 && !isLoading" class="no-markers">No markers available</div>
       <div v-else class="markers-list">
-        <h3>Current Markers ({{ markers.length }})</h3>
+        <h3>
+          Current Markers ({{ markers.length }})
+          <span v-if="currentName" class="view-all" @click="navigateTo(null)">View All</span>
+        </h3>
         <ul>
           <li v-for="marker in markers" :key="marker.name">
-            <strong>{{ marker.name }}</strong
+            <strong
+              class="marker-name"
+              :class="{ current: marker.name === currentName }"
+              @click="navigateTo(marker.name)"
+              >{{ marker.name }}</strong
             >:
             <code>[ {{ marker.latitude.toFixed(5) }}, {{ marker.longitude.toFixed(5) }} ]</code> @
             {{ getRelativeTime(marker.timestamp) }}
@@ -236,4 +291,32 @@ h3 {
   }
 }
 
+.marker-name {
+  cursor: pointer;
+  color: #2c3e50;
+  transition: color 0.2s;
+}
+
+.marker-name:hover {
+  color: #42b983;
+  text-decoration: underline;
+}
+
+.marker-name.current {
+  color: #42b983;
+  font-weight: bold;
+}
+
+.view-all {
+  font-size: 14px;
+  font-weight: normal;
+  margin-left: 10px;
+  color: #42b983;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.view-all:hover {
+  text-decoration: underline;
+}
 </style>
