@@ -1,7 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
 import MapComponent from '../MapComponent.vue'
 import type { MarkerData } from '@/services/markerService.ts'
+
+// Mock vue-router
+const mockRouterPush = vi.fn()
+vi.mock('vue-router', () => ({
+  useRouter: vi.fn(() => ({
+    push: mockRouterPush,
+  })),
+}))
 
 // Mock the marker service
 vi.mock('@/services/markerService', () => {
@@ -28,9 +36,12 @@ vi.mock('@/services/markerService', () => {
     ]),
     isLoading: createMockRef(false),
     error: createMockRef(null),
+    currentName: createMockRef(null),
     startFetching: vi.fn(),
     stopFetching: vi.fn(),
     fetchMarkerData: vi.fn(),
+    fetchMarkerByName: vi.fn(),
+    startFetchingByName: vi.fn(),
   }
 })
 
@@ -103,7 +114,7 @@ describe('MapComponent', () => {
 
     // Check if the component renders correctly
     expect(wrapper.find('.map-container').exists()).toBe(true)
-    expect(wrapper.find('h2').text()).toBe('Stalking...')
+    expect(wrapper.find('h2').text()).toBe('Stalking... everyone')
     expect(wrapper.find('.map').exists()).toBe(true)
   })
 

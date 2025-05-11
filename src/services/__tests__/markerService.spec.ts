@@ -81,7 +81,7 @@ describe('markerService', () => {
     expect(error.value).toBe('Network error')
   })
 
-  it('starts and stops periodic fetching', () => {
+  it('starts and stops periodic fetching', async () => {
     // Mock the global functions
     const originalSetInterval = global.setInterval
     const originalClearInterval = global.clearInterval
@@ -97,7 +97,7 @@ describe('markerService', () => {
 
     try {
       // Call the functions we want to test
-      startFetching(5000)
+      await startFetching(5000)
 
       // Verify that setInterval was called with the correct interval
       expect(global.setInterval).toHaveBeenCalledWith(expect.any(Function), 5000)
