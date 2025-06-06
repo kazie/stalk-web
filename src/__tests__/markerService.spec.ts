@@ -13,6 +13,9 @@ import {
   stopFetching,
   toggleFreeRoamingMode,
   updateFrequency,
+  currentZoomLevel,
+  setZoomLevel,
+  ZoomLevel,
 } from '../services/markerService'
 
 // Mock fetch API
@@ -37,6 +40,7 @@ describe('markerService', () => {
     currentName.value = null
     freeRoamingMode.value = false
     updateFrequency.value = 5000
+    currentZoomLevel.value = ZoomLevel.Medium
 
     // Mock successful fetch response
     const mockResponse = {
@@ -213,6 +217,35 @@ describe('markerService', () => {
       // Set back to default
       await setUpdateFrequency(5000)
       expect(updateFrequency.value).toBe(5000)
+    })
+  })
+
+  describe('setZoomLevel', () => {
+    it('should set the zoom level', () => {
+      // Initial state should be Medium (15)
+      expect(currentZoomLevel.value).toBe(ZoomLevel.Medium)
+
+      // Set a new zoom level
+      setZoomLevel(ZoomLevel.Close)
+      expect(currentZoomLevel.value).toBe(ZoomLevel.Close)
+    })
+
+    it('should work with different zoom levels', () => {
+      // Set to Close
+      setZoomLevel(ZoomLevel.Close)
+      expect(currentZoomLevel.value).toBe(ZoomLevel.Close)
+
+      // Set to Far
+      setZoomLevel(ZoomLevel.Far)
+      expect(currentZoomLevel.value).toBe(ZoomLevel.Far)
+
+      // Set to Very Far
+      setZoomLevel(ZoomLevel.VeryFar)
+      expect(currentZoomLevel.value).toBe(ZoomLevel.VeryFar)
+
+      // Set back to Medium
+      setZoomLevel(ZoomLevel.Medium)
+      expect(currentZoomLevel.value).toBe(ZoomLevel.Medium)
     })
   })
 })

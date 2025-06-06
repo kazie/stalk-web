@@ -19,6 +19,14 @@ vi.mock('@/services/markerService', () => {
     __v_isRef: true as const,
   })
 
+  // Define ZoomLevel enum for the mock
+  const ZoomLevel = {
+    Close: 18,
+    Medium: 15,
+    Far: 10,
+    VeryFar: 6,
+  }
+
   return {
     markers: createMockRef<Array<MarkerData>>([
       {
@@ -39,6 +47,8 @@ vi.mock('@/services/markerService', () => {
     currentName: createMockRef(null),
     freeRoamingMode: createMockRef(false),
     updateFrequency: createMockRef(5000),
+    currentZoomLevel: createMockRef(ZoomLevel.Medium),
+    ZoomLevel,
     startFetching: vi.fn(),
     stopFetching: vi.fn(),
     fetchMarkerData: vi.fn(),
@@ -46,6 +56,7 @@ vi.mock('@/services/markerService', () => {
     startFetchingByName: vi.fn(),
     toggleFreeRoamingMode: vi.fn(),
     setUpdateFrequency: vi.fn(),
+    setZoomLevel: vi.fn(),
   }
 })
 
@@ -139,6 +150,28 @@ describe('MapComponent', () => {
     expect(markerItems[1].text()).toContain('Test Marker 2')
     expect(markerItems[1].text()).toContain('51.50740')
     expect(markerItems[1].text()).toContain('-0.12780')
+  })
+
+  it('disables the free roaming toggle button when there are no markers', async () => {
+    // Save the original mock implementation
+    const originalMock = vi.importActual('@/services/markerService')
+
+    // Override the markers value for this test
+    const markerService = await import('@/services/markerService')
+    const originalMarkers = [...markerService.markers.value]
+    markerService.markers.value = []
+
+    // Mount the component with empty markers
+    const wrapper = mount(MapComponent)
+    await flushPromises()
+
+    // The free roaming toggle button should be disabled
+    const freeRoamingButton = wrapper.find('.free-roaming-toggle')
+    expect(freeRoamingButton.attributes('disabled')).toBeDefined()
+    expect(freeRoamingButton.attributes('title')).toBe('Free roaming is enforced when there are no markers')
+
+    // Restore the original markers
+    markerService.markers.value = originalMarkers
   })
 
   it('initializes the map and starts fetching when mounted', async () => {

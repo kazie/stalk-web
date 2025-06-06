@@ -17,9 +17,19 @@ export const isLoading = ref(false)
 export const error = ref<string | null>(null)
 export const currentName = ref<string | null>(null)
 
-// Create reactive state for the free roaming mode and update frequency
+// Define zoom level options
+export enum ZoomLevel {
+  Close = 18,
+  Medium = 15,
+  Far = 10,
+  VeryFar = 6,
+  CountryFar = 4,
+}
+
+// Create reactive state for the free roaming mode, update frequency, and zoom level
 export const freeRoamingMode = ref(false)
 export const updateFrequency = ref(5000) // Default to 5 seconds
+export const currentZoomLevel = ref<ZoomLevel>(ZoomLevel.Medium) // Default to medium zoom
 
 // Fetch marker data from the API
 export const fetchMarkerData = async (): Promise<void> => {
@@ -117,6 +127,11 @@ export const setUpdateFrequency = async (frequencyMs: number): Promise<void> => 
       console.error('Error restarting fetch after frequency update:', error)
     }
   }
+}
+
+// Set zoom level
+export const setZoomLevel = (zoomLevel: ZoomLevel): void => {
+  currentZoomLevel.value = zoomLevel
 }
 
 // Stop periodic fetching

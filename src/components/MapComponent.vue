@@ -14,6 +14,9 @@ import {
   toggleFreeRoamingMode,
   updateFrequency,
   setUpdateFrequency,
+  currentZoomLevel,
+  setZoomLevel,
+  ZoomLevel,
 } from '@/services/markerService'
 import { getRelativeTime } from '@/services/timeTool.ts'
 import { useRouter } from 'vue-router'
@@ -84,6 +87,11 @@ const updateMapMarkers = () => {
     markersLayer = L.layerGroup().addTo(map)
   }
 
+  // Enforce free roaming mode when there are no markers
+  if (markers.value.length === 0 && !freeRoamingMode.value) {
+    freeRoamingMode.value = true
+  }
+
   // Add new markers
   if (markers.value.length > 0) {
     // Create bounds to fit all markers
@@ -103,18 +111,18 @@ const updateMapMarkers = () => {
     // Only adjust the map view if free roaming mode is disabled
     if (!freeRoamingMode.value) {
       if (markers.value.length == 1) {
-        // For a single marker, set a moderate zoom level (not too close)
+        // For a single marker, use the current zoom level
         const marker = markers.value[0]
-        map.setView([marker.latitude, marker.longitude], 15)
+        map.setView([marker.latitude, marker.longitude], currentZoomLevel.value, {animate: true})
       }
       // Fit the map to show all markers
       else if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [50, 50] })
+        map.fitBounds(bounds, { padding: [50, 50], animate: true })
       }
     }
   } else if (map && !freeRoamingMode.value) {
     // If no markers and not in free roaming mode, set a default view
-    map.setView([62, 15], 4)
+    map.setView([62, 15], ZoomLevel.CountryFar)
   }
 }
 
@@ -199,9 +207,22 @@ onUnmounted(() => {
           class="free-roaming-toggle"
           @click="toggleFreeRoamingMode"
           :class="{ active: freeRoamingMode }"
+          :disabled="markers.length === 0"
+          :title="markers.length === 0 ? 'Free roaming is enforced when there are no markers' : ''"
         >
           {{ freeRoamingMode ? 'Free Roaming: ON' : 'Free Roaming: OFF' }}
         </button>
+        <select
+          v-if="!freeRoamingMode"
+          class="zoom-dropdown"
+          :value="currentZoomLevel"
+          @change="(e: Event) => setZoomLevel(Number((e.target as HTMLSelectElement).value))"
+        >
+          <option :value="ZoomLevel.Close">Zoom: Close</option>
+          <option :value="ZoomLevel.Medium">Zoom: Medium</option>
+          <option :value="ZoomLevel.Far">Zoom: Far</option>
+          <option :value="ZoomLevel.VeryFar">Zoom: Very Far</option>
+        </select>
       </div>
     </div>
     <div v-if="error" class="error-message">{{ error }}</div>
@@ -272,7 +293,8 @@ h2 {
   gap: 10px;
 }
 
-.frequency-dropdown {
+.frequency-dropdown,
+.zoom-dropdown {
   padding: 6px 10px;
   border-radius: 4px;
   border: 1px solid #ccc;
@@ -299,6 +321,12 @@ h2 {
   background-color: #42b983;
   color: white;
   border-color: #42b983;
+}
+
+.free-roaming-toggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f0f0f0;
 }
 
 h3 {
