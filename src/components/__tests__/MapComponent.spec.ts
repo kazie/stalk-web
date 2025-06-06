@@ -37,11 +37,15 @@ vi.mock('@/services/markerService', () => {
     isLoading: createMockRef(false),
     error: createMockRef(null),
     currentName: createMockRef(null),
+    freeRoamingMode: createMockRef(false),
+    updateFrequency: createMockRef(5000),
     startFetching: vi.fn(),
     stopFetching: vi.fn(),
     fetchMarkerData: vi.fn(),
     fetchMarkerByName: vi.fn(),
     startFetchingByName: vi.fn(),
+    toggleFreeRoamingMode: vi.fn(),
+    setUpdateFrequency: vi.fn(),
   }
 })
 

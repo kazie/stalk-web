@@ -6,6 +6,10 @@ import {
   fetchMarkerData,
   startFetching,
   stopFetching,
+  freeRoamingMode,
+  updateFrequency,
+  toggleFreeRoamingMode,
+  setUpdateFrequency,
 } from '../markerService'
 
 // Mock the fetch API
@@ -17,6 +21,8 @@ describe('markerService', () => {
     markers.value = []
     isLoading.value = false
     error.value = null
+    freeRoamingMode.value = false
+    updateFrequency.value = 5000
 
     // Reset mocks
     vi.clearAllMocks()
@@ -97,7 +103,7 @@ describe('markerService', () => {
 
     try {
       // Call the functions we want to test
-      await startFetching(5000)
+      await startFetching()
 
       // Verify that setInterval was called with the correct interval
       expect(global.setInterval).toHaveBeenCalledWith(expect.any(Function), 5000)
@@ -114,5 +120,35 @@ describe('markerService', () => {
       global.setInterval = originalSetInterval
       global.clearInterval = originalClearInterval
     }
+  })
+
+  it('toggles free roaming mode', () => {
+    // Initial state should be false
+    expect(freeRoamingMode.value).toBe(false)
+
+    // Toggle it on
+    toggleFreeRoamingMode()
+    expect(freeRoamingMode.value).toBe(true)
+
+    // Toggle it off
+    toggleFreeRoamingMode()
+    expect(freeRoamingMode.value).toBe(false)
+  })
+
+  it('sets update frequency', async () => {
+    // Initial state should be 5000
+    expect(updateFrequency.value).toBe(5000)
+
+    // Set a new frequency
+    await setUpdateFrequency(1000)
+    expect(updateFrequency.value).toBe(1000)
+
+    // Set another frequency
+    await setUpdateFrequency(2000)
+    expect(updateFrequency.value).toBe(2000)
+
+    // Set back to default
+    await setUpdateFrequency(5000)
+    expect(updateFrequency.value).toBe(5000)
   })
 })
