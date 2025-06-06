@@ -113,7 +113,7 @@ const updateMapMarkers = () => {
       if (markers.value.length == 1) {
         // For a single marker, use the current zoom level
         const marker = markers.value[0]
-        map.setView([marker.latitude, marker.longitude], currentZoomLevel.value, {animate: true})
+        map.setView([marker.latitude, marker.longitude], currentZoomLevel.value, { animate: true })
       }
       // Fit the map to show all markers
       else if (bounds.isValid()) {
@@ -188,21 +188,32 @@ onUnmounted(() => {
 <template>
   <div class="map-container">
     <div class="header-controls">
-      <h2>
-        Stalking... {{ currentName ? currentName : 'everyone' }}
-        <span v-if="isLoading" class="loading-indicator">Loading...</span>
-      </h2>
+      <h2>Stalking... {{ currentName ? currentName : 'everyone' }}</h2>
       <div class="controls">
+        <label for="refresh-rate">🔄</label>
         <select
           class="frequency-dropdown"
           :value="updateFrequency"
           @change="(e: Event) => setUpdateFrequency(Number((e.target as HTMLSelectElement).value))"
         >
-          <option value="1000">Update every 1s</option>
-          <option value="5000">Update every 5s</option>
-          <option value="10000">Update every 10s</option>
-          <option value="30000">Update every 30s</option>
+          <option value="1000">1s</option>
+          <option value="5000">5s</option>
+          <option value="10000">10s</option>
+          <option value="30000">30s</option>
         </select>
+        <label v-if="!freeRoamingMode" for="zoom-level">🔍</label>
+        <select
+          v-if="!freeRoamingMode"
+          class="zoom-dropdown"
+          :value="currentZoomLevel"
+          @change="(e: Event) => setZoomLevel(Number((e.target as HTMLSelectElement).value))"
+        >
+          <option :value="ZoomLevel.Close">Close</option>
+          <option :value="ZoomLevel.Medium">Medium</option>
+          <option :value="ZoomLevel.Far">Far</option>
+          <option :value="ZoomLevel.VeryFar">Very Far</option>
+        </select>
+        <label for="free-roaming-mode">️️🗺️</label>
         <button
           class="free-roaming-toggle"
           @click="toggleFreeRoamingMode"
@@ -210,19 +221,8 @@ onUnmounted(() => {
           :disabled="markers.length === 0"
           :title="markers.length === 0 ? 'Free roaming is enforced when there are no markers' : ''"
         >
-          {{ freeRoamingMode ? 'Free Roaming: ON' : 'Free Roaming: OFF' }}
+          {{ freeRoamingMode ? 'ON' : 'OFF' }}
         </button>
-        <select
-          v-if="!freeRoamingMode"
-          class="zoom-dropdown"
-          :value="currentZoomLevel"
-          @change="(e: Event) => setZoomLevel(Number((e.target as HTMLSelectElement).value))"
-        >
-          <option :value="ZoomLevel.Close">Zoom: Close</option>
-          <option :value="ZoomLevel.Medium">Zoom: Medium</option>
-          <option :value="ZoomLevel.Far">Zoom: Far</option>
-          <option :value="ZoomLevel.VeryFar">Zoom: Very Far</option>
-        </select>
       </div>
     </div>
     <div v-if="error" class="error-message">{{ error }}</div>
@@ -333,14 +333,6 @@ h3 {
   margin-top: 16px;
   margin-bottom: 8px;
   font-size: 16px;
-}
-
-.loading-indicator {
-  margin-left: 10px;
-  font-size: 14px;
-  color: #666;
-  font-weight: normal;
-  animation: pulse 1.5s infinite;
 }
 
 .error-message {

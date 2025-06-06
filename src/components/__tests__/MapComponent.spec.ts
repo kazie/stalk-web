@@ -168,7 +168,9 @@ describe('MapComponent', () => {
     // The free roaming toggle button should be disabled
     const freeRoamingButton = wrapper.find('.free-roaming-toggle')
     expect(freeRoamingButton.attributes('disabled')).toBeDefined()
-    expect(freeRoamingButton.attributes('title')).toBe('Free roaming is enforced when there are no markers')
+    expect(freeRoamingButton.attributes('title')).toBe(
+      'Free roaming is enforced when there are no markers',
+    )
 
     // Restore the original markers
     markerService.markers.value = originalMarkers
