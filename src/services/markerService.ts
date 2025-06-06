@@ -17,6 +17,20 @@ export const isLoading = ref(false)
 export const error = ref<string | null>(null)
 export const currentName = ref<string | null>(null)
 
+// Define zoom level options
+export enum ZoomLevel {
+  Close = 18,
+  Medium = 15,
+  Far = 10,
+  VeryFar = 6,
+  CountryFar = 4,
+}
+
+// Create reactive state for the free roaming mode, update frequency, and zoom level
+export const freeRoamingMode = ref(false)
+export const updateFrequency = ref(5000) // Default to 5 seconds
+export const currentZoomLevel = ref<ZoomLevel>(ZoomLevel.Medium) // Default to medium zoom
+
 // Fetch marker data from the API
 export const fetchMarkerData = async (): Promise<void> => {
   isLoading.value = true
@@ -71,23 +85,53 @@ export const fetchMarkerByName = async (name: string): Promise<void> => {
 let fetchInterval: ReturnType<typeof setTimeout> | null = null
 
 // Start periodic fetching for all markers
-export const startFetching = async (intervalMs = 10000): Promise<void> => {
+export const startFetching = async (intervalMs?: number): Promise<void> => {
   stopFetching()
   // Initial fetch
   await fetchMarkerData()
 
-  // Set up interval for periodic fetching
-  fetchInterval = setInterval(fetchMarkerData, intervalMs)
+  // Set up interval for periodic fetching using the provided interval or the reactive updateFrequency
+  const interval = intervalMs || updateFrequency.value
+  fetchInterval = setInterval(fetchMarkerData, interval)
 }
 
 // Start periodic fetching for a specific name
-export const startFetchingByName = async (name: string, intervalMs = 10000): Promise<void> => {
+export const startFetchingByName = async (name: string, intervalMs?: number): Promise<void> => {
   stopFetching()
   // Initial fetch
   await fetchMarkerByName(name)
 
-  // Set up interval for periodic fetching
-  fetchInterval = setInterval(async () => await fetchMarkerByName(name), intervalMs)
+  // Set up interval for periodic fetching using the provided interval or the reactive updateFrequency
+  const interval = intervalMs || updateFrequency.value
+  fetchInterval = setInterval(async () => await fetchMarkerByName(name), interval)
+}
+
+// Toggle free roaming mode
+export const toggleFreeRoamingMode = (): void => {
+  freeRoamingMode.value = !freeRoamingMode.value
+}
+
+// Set update frequency and restart fetching if active
+export const setUpdateFrequency = async (frequencyMs: number): Promise<void> => {
+  updateFrequency.value = frequencyMs
+
+  // If we have an active interval, restart it with the new frequency
+  if (fetchInterval) {
+    try {
+      if (currentName.value) {
+        await startFetchingByName(currentName.value)
+      } else {
+        await startFetching()
+      }
+    } catch (error) {
+      console.error('Error restarting fetch after frequency update:', error)
+    }
+  }
+}
+
+// Set zoom level
+export const setZoomLevel = (zoomLevel: ZoomLevel): void => {
+  currentZoomLevel.value = zoomLevel
 }
 
 // Stop periodic fetching

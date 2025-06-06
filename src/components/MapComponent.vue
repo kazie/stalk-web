@@ -5,11 +5,18 @@ import L from 'leaflet'
 import {
   currentName,
   error,
+  freeRoamingMode,
   isLoading,
   markers,
   startFetching,
   startFetchingByName,
   stopFetching,
+  toggleFreeRoamingMode,
+  updateFrequency,
+  setUpdateFrequency,
+  currentZoomLevel,
+  setZoomLevel,
+  ZoomLevel,
 } from '@/services/markerService'
 import { getRelativeTime } from '@/services/timeTool.ts'
 import { useRouter } from 'vue-router'
@@ -80,6 +87,11 @@ const updateMapMarkers = () => {
     markersLayer = L.layerGroup().addTo(map)
   }
 
+  // Enforce free roaming mode when there are no markers
+  if (markers.value.length === 0 && !freeRoamingMode.value) {
+    freeRoamingMode.value = true
+  }
+
   // Add new markers
   if (markers.value.length > 0) {
     // Create bounds to fit all markers
@@ -96,18 +108,21 @@ const updateMapMarkers = () => {
       marker.bindPopup(`<b>${markerData.name}</b> ${getRelativeTime(markerData.timestamp)}`)
     })
 
-    if (markers.value.length == 1) {
-      // For a single marker, set a moderate zoom level (not too close)
-      const marker = markers.value[0]
-      map.setView([marker.latitude, marker.longitude], 15)
+    // Only adjust the map view if free roaming mode is disabled
+    if (!freeRoamingMode.value) {
+      if (markers.value.length == 1) {
+        // For a single marker, use the current zoom level
+        const marker = markers.value[0]
+        map.setView([marker.latitude, marker.longitude], currentZoomLevel.value, {animate: true})
+      }
+      // Fit the map to show all markers
+      else if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [50, 50], animate: true })
+      }
     }
-    // Fit the map to show all markers
-    else if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [50, 50] })
-    }
-  } else if (map) {
-    // If no markers, set a default view
-    map.setView([62, 15], 4)
+  } else if (map && !freeRoamingMode.value) {
+    // If no markers and not in free roaming mode, set a default view
+    map.setView([62, 15], ZoomLevel.CountryFar)
   }
 }
 
@@ -172,10 +187,44 @@ onUnmounted(() => {
 
 <template>
   <div class="map-container">
-    <h2>
-      Stalking... {{ currentName ? currentName : 'everyone'
-      }}<span v-if="isLoading" class="loading-indicator">Loading...</span>
-    </h2>
+    <div class="header-controls">
+      <h2>
+        Stalking... {{ currentName ? currentName : 'everyone' }}
+        <span v-if="isLoading" class="loading-indicator">Loading...</span>
+      </h2>
+      <div class="controls">
+        <select
+          class="frequency-dropdown"
+          :value="updateFrequency"
+          @change="(e: Event) => setUpdateFrequency(Number((e.target as HTMLSelectElement).value))"
+        >
+          <option value="1000">Update every 1s</option>
+          <option value="5000">Update every 5s</option>
+          <option value="10000">Update every 10s</option>
+          <option value="30000">Update every 30s</option>
+        </select>
+        <button
+          class="free-roaming-toggle"
+          @click="toggleFreeRoamingMode"
+          :class="{ active: freeRoamingMode }"
+          :disabled="markers.length === 0"
+          :title="markers.length === 0 ? 'Free roaming is enforced when there are no markers' : ''"
+        >
+          {{ freeRoamingMode ? 'Free Roaming: ON' : 'Free Roaming: OFF' }}
+        </button>
+        <select
+          v-if="!freeRoamingMode"
+          class="zoom-dropdown"
+          :value="currentZoomLevel"
+          @change="(e: Event) => setZoomLevel(Number((e.target as HTMLSelectElement).value))"
+        >
+          <option :value="ZoomLevel.Close">Zoom: Close</option>
+          <option :value="ZoomLevel.Medium">Zoom: Medium</option>
+          <option :value="ZoomLevel.Far">Zoom: Far</option>
+          <option :value="ZoomLevel.VeryFar">Zoom: Very Far</option>
+        </select>
+      </div>
+    </div>
     <div v-if="error" class="error-message">{{ error }}</div>
     <div ref="mapContainer" class="map"></div>
     <div class="markers-info">
@@ -223,10 +272,61 @@ onUnmounted(() => {
   flex: 1;
 }
 
-h2 {
+.header-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+h2 {
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
+  margin-right: 16px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.frequency-dropdown,
+.zoom-dropdown {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.free-roaming-toggle {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: #f5f5f5;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.free-roaming-toggle:hover {
+  background-color: #e0e0e0;
+}
+
+.free-roaming-toggle.active {
+  background-color: #42b983;
+  color: white;
+  border-color: #42b983;
+}
+
+.free-roaming-toggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f0f0f0;
 }
 
 h3 {

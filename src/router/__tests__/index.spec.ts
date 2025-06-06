@@ -26,7 +26,7 @@ beforeEach(() => {
 
 // Mock the HomeView component
 vi.mock('../views/HomeView.vue', () => ({
-  default: { name: 'HomeView' }
+  default: { name: 'HomeView' },
 }))
 
 describe('Router', () => {
