@@ -143,13 +143,15 @@ describe('MapComponent', () => {
 
     const markerItems = wrapper.findAll('.markers-list li')
     expect(markerItems.length).toBe(2)
-    expect(markerItems[0].text()).toContain('Test Marker 1')
-    expect(markerItems[0].text()).toContain('40.71280')
-    expect(markerItems[0].text()).toContain('-74.00600')
+    const first = markerItems[0]!
+    const second = markerItems[1]!
+    expect(first.text()).toContain('Test Marker 1')
+    expect(first.text()).toContain('40.71280')
+    expect(first.text()).toContain('-74.00600')
 
-    expect(markerItems[1].text()).toContain('Test Marker 2')
-    expect(markerItems[1].text()).toContain('51.50740')
-    expect(markerItems[1].text()).toContain('-0.12780')
+    expect(second.text()).toContain('Test Marker 2')
+    expect(second.text()).toContain('51.50740')
+    expect(second.text()).toContain('-0.12780')
   })
 
   it('disables the free roaming toggle button when there are no markers', async () => {
@@ -202,7 +204,7 @@ describe('MapComponent', () => {
 
     // The map should be removed
     const L = await import('leaflet')
-    const mapInstance = vi.mocked(L.default.map).mock.results[0].value
+    const mapInstance = vi.mocked(L.default.map).mock.results[0]!.value as any
     expect(mapInstance.remove).toHaveBeenCalled()
 
     // Should stop fetching data

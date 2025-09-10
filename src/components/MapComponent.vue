@@ -112,8 +112,9 @@ const updateMapMarkers = () => {
     if (!freeRoamingMode.value) {
       if (markers.value.length == 1) {
         // For a single marker, use the current zoom level
-        const marker = markers.value[0]
-        map.setView([marker.latitude, marker.longitude], currentZoomLevel.value, { animate: true })
+        const single = markers.value[0]
+        if (!single) return
+        map.setView([single.latitude, single.longitude], currentZoomLevel.value, { animate: true })
       }
       // Fit the map to show all markers
       else if (bounds.isValid()) {
