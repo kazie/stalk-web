@@ -10,13 +10,18 @@ import {
   markers,
   startFetching,
   startFetchingByName,
-  stopFetching,
+  startLive,
+  startLiveByName,
+  stopUpdates,
   toggleFreeRoamingMode,
   updateFrequency,
   setUpdateFrequency,
   currentZoomLevel,
   setZoomLevel,
   ZoomLevel,
+  updateMode,
+  setUpdateMode,
+  UpdateMode,
 } from '@/services/markerService'
 import { getRelativeTime } from '@/services/timeTool.ts'
 import { useRouter } from 'vue-router'
@@ -70,11 +75,16 @@ const getIconForName = (name: string): L.Icon => {
 const mapContainer = ref<HTMLElement | null>(null)
 let map: L.Map | null = null
 let markersLayer: L.LayerGroup | null = null
+const autoEnforcedFreeRoaming = ref(false)
 
 // Watch for changes in markers and update the map
-watch(markers, () => {
-  updateMapMarkers()
-})
+watch(
+  markers,
+  () => {
+    updateMapMarkers()
+  },
+  { deep: true },
+)
 
 // Update markers on the map
 const updateMapMarkers = () => {
@@ -90,10 +100,16 @@ const updateMapMarkers = () => {
   // Enforce free roaming mode when there are no markers
   if (markers.value.length === 0 && !freeRoamingMode.value) {
     freeRoamingMode.value = true
+    autoEnforcedFreeRoaming.value = true
   }
 
   // Add new markers
   if (markers.value.length > 0) {
+    // If free roaming was auto-enforced due to zero markers, disable it now
+    if (autoEnforcedFreeRoaming.value && freeRoamingMode.value) {
+      freeRoamingMode.value = false
+      autoEnforcedFreeRoaming.value = false
+    }
     // Create bounds to fit all markers
     const bounds = L.latLngBounds([])
 
@@ -131,18 +147,48 @@ const updateMapMarkers = () => {
 watch(
   () => props.name,
   (newName) => {
-    // Stop any existing interval first
-    stopFetching()
+    // Stop any existing updates first
+    stopUpdates()
 
     if (newName) {
-      // Start periodic fetching for the specific name
-      startFetchingByName(newName)
+      // Start updates for the specific name
+      if (updateMode.value === UpdateMode.Live) {
+        startLiveByName(newName)
+      } else {
+        startFetchingByName(newName)
+      }
     } else {
-      // Start fetching all markers
-      startFetching()
+      // Start updates for all markers
+      if (updateMode.value === UpdateMode.Live) {
+        startLive()
+      } else {
+        startFetching()
+      }
     }
   },
   { immediate: true },
+)
+
+// Restart when switching between Poll and Live
+watch(
+  updateMode,
+  () => {
+    stopUpdates()
+    if (currentName.value) {
+      if (updateMode.value === UpdateMode.Live) {
+        startLiveByName(currentName.value)
+      } else {
+        startFetchingByName(currentName.value)
+      }
+    } else {
+      if (updateMode.value === UpdateMode.Live) {
+        startLive()
+      } else {
+        startFetching()
+      }
+    }
+  },
+  { immediate: false },
 )
 
 // Navigate to a specific name using Vue Router
@@ -175,8 +221,8 @@ onMounted(() => {
 
 // Clean up the map and stop fetching when the component is unmounted
 onUnmounted(() => {
-  // Stop fetching marker data
-  stopFetching()
+  // Stop all updates (polling or live)
+  stopUpdates()
 
   // Remove the map
   if (map) {
@@ -191,8 +237,9 @@ onUnmounted(() => {
     <div class="header-controls">
       <h2>Stalking... {{ currentName ? currentName : 'everyone' }}</h2>
       <div class="controls">
-        <label for="refresh-rate">🔄</label>
+        <label v-if="updateMode !== UpdateMode.Live" for="refresh-rate">🔄</label>
         <select
+          v-if="updateMode !== UpdateMode.Live"
           class="frequency-dropdown"
           :value="updateFrequency"
           @change="(e: Event) => setUpdateFrequency(Number((e.target as HTMLSelectElement).value))"
@@ -202,9 +249,17 @@ onUnmounted(() => {
           <option value="10000">10s</option>
           <option value="30000">30s</option>
         </select>
-        <label v-if="!freeRoamingMode" for="zoom-level">🔍</label>
+        <label for="mode">📡</label>
+        <button
+          class="live-toggle"
+          @click="setUpdateMode(updateMode === UpdateMode.Live ? UpdateMode.Poll : UpdateMode.Live)"
+          :class="{ active: updateMode === UpdateMode.Live }"
+          :title="updateMode === UpdateMode.Live ? 'LIVE enabled' : 'LIVE disabled (Polling)'"
+        >
+          LIVE
+        </button>
+        <label for="zoom-level">🔍</label>
         <select
-          v-if="!freeRoamingMode"
           class="zoom-dropdown"
           :value="currentZoomLevel"
           @change="(e: Event) => setZoomLevel(Number((e.target as HTMLSelectElement).value))"
@@ -295,7 +350,8 @@ h2 {
 }
 
 .frequency-dropdown,
-.zoom-dropdown {
+.zoom-dropdown,
+.mode-dropdown {
   padding: 6px 10px;
   border-radius: 4px;
   border: 1px solid #ccc;
@@ -328,6 +384,27 @@ h2 {
   opacity: 0.6;
   cursor: not-allowed;
   background-color: #f0f0f0;
+}
+
+/* LIVE mode toggle button */
+.live-toggle {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: #f5f5f5;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.live-toggle:hover {
+  background-color: #e0e0e0;
+}
+
+.live-toggle.active {
+  background-color: #42b983;
+  color: white;
+  border-color: #42b983;
 }
 
 h3 {

@@ -17,12 +17,21 @@ vi.mock('../services/markerService', async () => {
   const actual = await vi.importActual('../services/markerService')
   return {
     ...actual,
+    // Keep reactive refs and enums from actual
+    updateMode: actual.updateMode,
+    UpdateMode: actual.UpdateMode,
+    currentName: actual.currentName,
+    markers: actual.markers,
+    isLoading: actual.isLoading,
+    error: actual.error,
+    // Mock methods
     startFetching: vi.fn(),
     stopFetching: vi.fn(),
     startFetchingByName: vi.fn(),
     fetchMarkerByName: vi.fn(),
-    // Make sure currentName is properly mocked
-    currentName: actual.currentName,
+    startLive: vi.fn(),
+    startLiveByName: vi.fn(),
+    stopUpdates: vi.fn(),
   }
 })
 
@@ -62,7 +71,7 @@ describe('MapComponent', () => {
   })
 
   describe('initialization', () => {
-    it('should start fetching all markers when no name is provided', async () => {
+    it('should start live updates when no name is provided', async () => {
       mount(MapComponent, {
         props: {
           name: undefined,
@@ -71,12 +80,12 @@ describe('MapComponent', () => {
 
       await nextTick()
 
-      expect(markerService.stopFetching).toHaveBeenCalledTimes(1)
-      expect(markerService.startFetching).toHaveBeenCalledTimes(1)
-      expect(markerService.startFetchingByName).not.toHaveBeenCalled()
+      expect(markerService.stopUpdates).toHaveBeenCalledTimes(1)
+      expect(markerService.startLive).toHaveBeenCalledTimes(1)
+      expect(markerService.startLiveByName).not.toHaveBeenCalled()
     })
 
-    it('should start fetching by name when a name is provided', async () => {
+    it('should start live updates by name when a name is provided', async () => {
       mount(MapComponent, {
         props: {
           name: 'test',
@@ -85,15 +94,15 @@ describe('MapComponent', () => {
 
       await nextTick()
 
-      expect(markerService.stopFetching).toHaveBeenCalledTimes(1)
-      expect(markerService.startFetchingByName).toHaveBeenCalledTimes(1)
-      expect(markerService.startFetchingByName).toHaveBeenCalledWith('test')
-      expect(markerService.startFetching).not.toHaveBeenCalled()
+      expect(markerService.stopUpdates).toHaveBeenCalledTimes(1)
+      expect(markerService.startLiveByName).toHaveBeenCalledTimes(1)
+      expect(markerService.startLiveByName).toHaveBeenCalledWith('test')
+      expect(markerService.startLive).not.toHaveBeenCalled()
     })
   })
 
   describe('watch function for name prop', () => {
-    it('should update fetching when name prop changes from null to a value', async () => {
+    it('should update live updates when name prop changes from null to a value', async () => {
       const wrapper = mount(MapComponent, {
         props: {
           name: undefined,
@@ -106,13 +115,13 @@ describe('MapComponent', () => {
       // Update the name prop
       await wrapper.setProps({ name: 'test' })
 
-      expect(markerService.stopFetching).toHaveBeenCalledTimes(1)
-      expect(markerService.startFetchingByName).toHaveBeenCalledTimes(1)
-      expect(markerService.startFetchingByName).toHaveBeenCalledWith('test')
-      expect(markerService.startFetching).not.toHaveBeenCalled()
+      expect(markerService.stopUpdates).toHaveBeenCalledTimes(1)
+      expect(markerService.startLiveByName).toHaveBeenCalledTimes(1)
+      expect(markerService.startLiveByName).toHaveBeenCalledWith('test')
+      expect(markerService.startLive).not.toHaveBeenCalled()
     })
 
-    it('should update fetching when name prop changes from a value to null', async () => {
+    it('should update live updates when name prop changes from a value to null', async () => {
       const wrapper = mount(MapComponent, {
         props: {
           name: 'test',
@@ -125,12 +134,12 @@ describe('MapComponent', () => {
       // Update the name prop
       await wrapper.setProps({ name: undefined })
 
-      expect(markerService.stopFetching).toHaveBeenCalledTimes(1)
-      expect(markerService.startFetching).toHaveBeenCalledTimes(1)
-      expect(markerService.startFetchingByName).not.toHaveBeenCalled()
+      expect(markerService.stopUpdates).toHaveBeenCalledTimes(1)
+      expect(markerService.startLive).toHaveBeenCalledTimes(1)
+      expect(markerService.startLiveByName).not.toHaveBeenCalled()
     })
 
-    it('should update fetching when name prop changes from one value to another', async () => {
+    it('should update live updates when name prop changes from one value to another', async () => {
       const wrapper = mount(MapComponent, {
         props: {
           name: 'test1',
@@ -143,15 +152,15 @@ describe('MapComponent', () => {
       // Update the name prop
       await wrapper.setProps({ name: 'test2' })
 
-      expect(markerService.stopFetching).toHaveBeenCalledTimes(1)
-      expect(markerService.startFetchingByName).toHaveBeenCalledTimes(1)
-      expect(markerService.startFetchingByName).toHaveBeenCalledWith('test2')
-      expect(markerService.startFetching).not.toHaveBeenCalled()
+      expect(markerService.stopUpdates).toHaveBeenCalledTimes(1)
+      expect(markerService.startLiveByName).toHaveBeenCalledTimes(1)
+      expect(markerService.startLiveByName).toHaveBeenCalledWith('test2')
+      expect(markerService.startLive).not.toHaveBeenCalled()
     })
   })
 
   describe('cleanup', () => {
-    it('should stop fetching when component is unmounted', async () => {
+    it('should stop updates when component is unmounted', async () => {
       const wrapper = mount(MapComponent)
 
       // Reset mocks after initial mount
@@ -160,7 +169,7 @@ describe('MapComponent', () => {
       // Unmount the component
       wrapper.unmount()
 
-      expect(markerService.stopFetching).toHaveBeenCalledTimes(1)
+      expect(markerService.stopUpdates).toHaveBeenCalledTimes(1)
     })
   })
 

@@ -19,13 +19,17 @@ vi.mock('@/services/markerService', () => {
     __v_isRef: true as const,
   })
 
-  // Define ZoomLevel enum for the mock
+  // Define enums and constants for the mock
   const ZoomLevel = {
     Close: 18,
     Medium: 15,
     Far: 10,
     VeryFar: 6,
   }
+  const UpdateMode = {
+    Poll: 'poll',
+    Live: 'live',
+  } as const
 
   return {
     markers: createMockRef<Array<MarkerData>>([
@@ -48,15 +52,25 @@ vi.mock('@/services/markerService', () => {
     freeRoamingMode: createMockRef(false),
     updateFrequency: createMockRef(5000),
     currentZoomLevel: createMockRef(ZoomLevel.Medium),
+    updateMode: createMockRef(UpdateMode.Live),
     ZoomLevel,
+    UpdateMode,
+    // Polling APIs (kept for backward compatibility in tests)
     startFetching: vi.fn(),
     stopFetching: vi.fn(),
     fetchMarkerData: vi.fn(),
     fetchMarkerByName: vi.fn(),
     startFetchingByName: vi.fn(),
+    // Live mode APIs
+    startLive: vi.fn(),
+    startLiveByName: vi.fn(),
+    stopLive: vi.fn(),
+    stopUpdates: vi.fn(),
+    // UI control helpers
     toggleFreeRoamingMode: vi.fn(),
     setUpdateFrequency: vi.fn(),
     setZoomLevel: vi.fn(),
+    setUpdateMode: vi.fn(),
   }
 })
 
@@ -190,9 +204,9 @@ describe('MapComponent', () => {
       expect.any(Object),
     )
 
-    // Should start fetching data
+    // Should start live updates by default
     const markerService = await import('@/services/markerService')
-    expect(markerService.startFetching).toHaveBeenCalled()
+    expect(markerService.startLive).toHaveBeenCalled()
   })
 
   it('cleans up the map and stops fetching when unmounted', async () => {
@@ -207,8 +221,8 @@ describe('MapComponent', () => {
     const mapInstance = vi.mocked(L.default.map).mock.results[0]!.value as any
     expect(mapInstance.remove).toHaveBeenCalled()
 
-    // Should stop fetching data
+    // Should stop updates
     const markerService = await import('@/services/markerService')
-    expect(markerService.stopFetching).toHaveBeenCalled()
+    expect(markerService.stopUpdates).toHaveBeenCalled()
   })
 })

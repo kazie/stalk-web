@@ -31,6 +31,118 @@ export const freeRoamingMode = ref(false)
 export const updateFrequency = ref(5000) // Default to 5 seconds
 export const currentZoomLevel = ref<ZoomLevel>(ZoomLevel.Medium) // Default to medium zoom
 
+// Update mode options: Poll (HTTP polling) or Live (WebSocket)
+export enum UpdateMode {
+  Poll = 'poll',
+  Live = 'live',
+}
+
+export const updateMode = ref<UpdateMode>(UpdateMode.Live)
+export const setUpdateMode = (mode: UpdateMode): void => {
+  updateMode.value = mode
+}
+
+// WebSocket state
+let ws: WebSocket | null = null
+let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
+let wsIntentionallyClosed = false
+
+const buildWsUrl = (name?: string): string => {
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+  const host = window.location.host
+  const path = name ? `/ws/coords/${encodeURIComponent(name)}` : '/ws/coords?initial=1'
+  return `${protocol}://${host}${path}`
+}
+
+const applyMarkerUpdate = (m: MarkerData) => {
+  if (currentName.value) {
+    // Single user view
+    markers.value = [m]
+    return
+  }
+  // All users: keep latest per user
+  const idx = markers.value.findIndex((x) => x.name === m.name)
+  if (idx >= 0) markers.value.splice(idx, 1, m)
+  else markers.value.push(m)
+}
+
+const connectWs = (name?: string) => {
+  // Cleanup any existing connection
+  if (ws) {
+    try {
+      wsIntentionallyClosed = true
+      ws.close()
+    } catch (e) {
+      // ignore
+    } finally {
+      ws = null
+    }
+  }
+  if (wsReconnectTimer) {
+    clearTimeout(wsReconnectTimer)
+    wsReconnectTimer = null
+  }
+
+  isLoading.value = true
+  error.value = null
+  wsIntentionallyClosed = false
+
+  const url = buildWsUrl(name)
+  ws = new WebSocket(url)
+
+  ws.onopen = () => {
+    isLoading.value = false
+  }
+
+  ws.onmessage = (evt: MessageEvent) => {
+    try {
+      const data = JSON.parse(evt.data as string) as MarkerData
+      applyMarkerUpdate(data)
+    } catch (e) {
+      console.error('WS message parse error', e)
+    }
+  }
+
+  ws.onerror = (evt: Event) => {
+    console.error('WebSocket error', evt)
+  }
+
+  ws.onclose = () => {
+    ws = null
+    if (!wsIntentionallyClosed && updateMode.value === UpdateMode.Live) {
+      // simple reconnect after 1s
+      wsReconnectTimer = setTimeout(() => connectWs(name), 1000)
+    }
+  }
+}
+
+export const startLive = (): void => {
+  // Live mode for all users
+  currentName.value = null
+  connectWs()
+}
+
+export const startLiveByName = (name: string): void => {
+  currentName.value = name
+  connectWs(name)
+}
+
+export const stopLive = (): void => {
+  if (wsReconnectTimer) {
+    clearTimeout(wsReconnectTimer)
+    wsReconnectTimer = null
+  }
+  if (ws) {
+    wsIntentionallyClosed = true
+    try {
+      ws.close()
+    } catch (e) {
+      // ignore
+    }
+    ws = null
+  }
+}
+
 // Fetch marker data from the API
 export const fetchMarkerData = async (): Promise<void> => {
   isLoading.value = true
@@ -139,5 +251,19 @@ export const stopFetching = (): void => {
   if (fetchInterval) {
     clearInterval(fetchInterval)
     fetchInterval = null
+  }
+}
+
+// Stop all updates (polling and live)
+export const stopUpdates = (): void => {
+  try {
+    stopFetching()
+  } catch (e) {
+    // ignore
+  }
+  try {
+    stopLive()
+  } catch (e) {
+    // ignore
   }
 }
