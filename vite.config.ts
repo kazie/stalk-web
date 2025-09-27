@@ -28,6 +28,11 @@ export default defineConfig(({ mode }) => {
           // If your API endpoint doesn't start with /api, you can rewrite the path:
           // rewrite: (path) => path.replace(/^\/api/, '')
         },
+        '/ws': {
+          target: env.VITE_DEV_PROXY_TARGET,
+          changeOrigin: true,
+          ws: true,
+        },
       },
     },
   }
