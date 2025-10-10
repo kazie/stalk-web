@@ -25,6 +25,7 @@ import {
 } from '@/services/markerService'
 import { getRelativeTime } from '@/services/timeTool.ts'
 import { useRouter } from 'vue-router'
+import { parseISO } from 'date-fns'
 
 // Define props
 const props = defineProps<{
@@ -77,6 +78,60 @@ let map: L.Map | null = null
 let markersLayer: L.LayerGroup | null = null
 const autoEnforcedFreeRoaming = ref(false)
 
+// Track markers to enable live popup content updates
+let markerInstances: Array<{ marker: L.Marker; name: string; timestamp: string }> = []
+// Map for reconciling markers by name to preserve open popups and move in place
+let markerByName = new Map<string, { marker: L.Marker; name: string; timestamp: string }>()
+
+// A ticking ref to trigger reactive re-computation of relative times in the template
+const nowTick = ref(Date.now())
+
+// Helper to make getRelativeTime reactive over time without changing call sites extensively
+const relativeTime = (iso: string): string => {
+  // Read the ticking ref to create a reactive dependency
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  nowTick.value
+  return getRelativeTime(iso)
+}
+
+// Adaptive timer for updating tick and popup contents
+let popupUpdateTimer: ReturnType<typeof setTimeout> | null = null
+
+function refreshRelativeTimesAndPopups() {
+  // Advance tick to trigger Vue reactivity for list rendering
+  nowTick.value = Date.now()
+  // Refresh popup contents for all tracked markers
+  if (markerInstances.length > 0) {
+    for (const it of markerInstances) {
+      const html = `<b>${it.name}</b> ${getRelativeTime(it.timestamp)}`
+      const popup = it.marker.getPopup()
+      if (popup) it.marker.setPopupContent(html)
+      else it.marker.bindPopup(html)
+    }
+  }
+}
+
+function computeNextDelayMs(): number {
+  const now = Date.now()
+  // 1s cadence if any marker is newer than 60s
+  for (const it of markerInstances) {
+    const ageMs = now - parseISO(it.timestamp).getTime()
+    if (ageMs < 60_000) return 1000
+  }
+  // Otherwise align to the next minute boundary
+  const msToNextMinute = 60_000 - (now % 60_000)
+  return Math.max(500, msToNextMinute)
+}
+
+function scheduleAdaptiveTick() {
+  if (popupUpdateTimer) clearTimeout(popupUpdateTimer)
+  const delay = computeNextDelayMs()
+  popupUpdateTimer = setTimeout(() => {
+    refreshRelativeTimesAndPopups()
+    scheduleAdaptiveTick()
+  }, delay)
+}
+
 // Watch for changes in markers and update the map
 watch(
   markers,
@@ -90,57 +145,101 @@ watch(
 const updateMapMarkers = () => {
   if (!map) return
 
-  // Clear existing markers
-  if (markersLayer) {
-    markersLayer.clearLayers()
-  } else {
+  // Ensure markersLayer exists
+  if (!markersLayer) {
     markersLayer = L.layerGroup().addTo(map)
   }
 
-  // Enforce free roaming mode when there are no markers
-  if (markers.value.length === 0 && !freeRoamingMode.value) {
-    freeRoamingMode.value = true
-    autoEnforcedFreeRoaming.value = true
+  // No markers: clear all existing and enforce free roaming/default view
+  if (markers.value.length === 0) {
+    // Remove existing markers from layer and tracking
+    for (const { marker } of markerByName.values()) {
+      markersLayer.removeLayer(marker)
+    }
+    markerByName.clear()
+    markerInstances = []
+
+    if (!freeRoamingMode.value) {
+      freeRoamingMode.value = true
+      autoEnforcedFreeRoaming.value = true
+    }
+
+    if (map && !freeRoamingMode.value) {
+      map.setView([62, 15], ZoomLevel.CountryFar)
+    }
+
+    // Immediate refresh for list/popup labels
+    refreshRelativeTimesAndPopups()
+    return
   }
 
-  // Add new markers
-  if (markers.value.length > 0) {
-    // If free roaming was auto-enforced due to zero markers, disable it now
-    if (autoEnforcedFreeRoaming.value && freeRoamingMode.value) {
-      freeRoamingMode.value = false
-      autoEnforcedFreeRoaming.value = false
-    }
-    // Create bounds to fit all markers
-    const bounds = L.latLngBounds([])
+  // If we previously enforced free roaming due to zero markers, lift it now
+  if (autoEnforcedFreeRoaming.value && freeRoamingMode.value) {
+    freeRoamingMode.value = false
+    autoEnforcedFreeRoaming.value = false
+  }
 
-    markers.value.forEach((markerData) => {
-      const position = L.latLng(markerData.latitude, markerData.longitude)
-      bounds.extend(position)
+  const bounds = L.latLngBounds([])
+  const incomingNames = new Set<string>()
 
+  // Upsert markers by name to preserve open popups and move in place
+  for (const markerData of markers.value) {
+    incomingNames.add(markerData.name)
+    const position = L.latLng(markerData.latitude, markerData.longitude)
+    bounds.extend(position)
+
+    const existing = markerByName.get(markerData.name)
+    if (existing) {
+      // Move marker to new coordinates (popup will follow if open)
+      existing.marker.setLatLng(position)
+      // Update timestamp in tracking
+      existing.timestamp = markerData.timestamp
+
+      // If popup is open, refresh its content immediately
+      const popup = existing.marker.getPopup()
+      // @ts-ignore cross-version Leaflet guard
+      const isOpen = typeof (existing.marker as any).isPopupOpen === 'function'
+        ? (existing.marker as any).isPopupOpen()
+        : !!(popup as any)?.isOpen?.()
+      if (isOpen) {
+        const html = `<b>${markerData.name}</b> ${getRelativeTime(markerData.timestamp)}`
+        if (popup) existing.marker.setPopupContent(html)
+        else existing.marker.bindPopup(html)
+      }
+    } else {
+      // Create a new marker
       const icon = getIconForName(markerData.name)
-      const marker = L.marker(position, { icon }).addTo(markersLayer!)
+      const newMarker = L.marker(position, { icon }).addTo(markersLayer!)
+      newMarker.bindPopup(`<b>${markerData.name}</b> ${getRelativeTime(markerData.timestamp)}`)
+      markerByName.set(markerData.name, { marker: newMarker, name: markerData.name, timestamp: markerData.timestamp })
+    }
+  }
 
-      // Add a popup to the marker
-      marker.bindPopup(`<b>${markerData.name}</b> ${getRelativeTime(markerData.timestamp)}`)
-    })
+  // Remove markers that disappeared
+  for (const [name, rec] of markerByName.entries()) {
+    if (!incomingNames.has(name)) {
+      markersLayer.removeLayer(rec.marker)
+      markerByName.delete(name)
+    }
+  }
 
-    // Only adjust the map view if free roaming mode is disabled
-    if (!freeRoamingMode.value) {
-      if (markers.value.length == 1) {
-        // For a single marker, use the current zoom level
-        const single = markers.value[0]
-        if (!single) return
+  // Rebuild markerInstances for adaptive popup refresh logic
+  markerInstances = Array.from(markerByName.values()).map(({ marker, name, timestamp }) => ({ marker, name, timestamp }))
+
+  // Adjust the map view if free roaming mode is disabled
+  if (!freeRoamingMode.value) {
+    if (markers.value.length === 1) {
+      const single = markers.value[0]
+      if (single) {
         map.setView([single.latitude, single.longitude], currentZoomLevel.value, { animate: true })
       }
-      // Fit the map to show all markers
-      else if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [50, 50], animate: true })
-      }
+    } else if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [50, 50], animate: true })
     }
-  } else if (map && !freeRoamingMode.value) {
-    // If no markers and not in free roaming mode, set a default view
-    map.setView([62, 15], ZoomLevel.CountryFar)
   }
+
+  // Immediate refresh of relative time labels and popup contents on data updates
+  refreshRelativeTimesAndPopups()
 }
 
 // Watch for changes in the name prop
@@ -216,6 +315,18 @@ onMounted(() => {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map)
+  }
+
+  // Start adaptive ticking to update relative time displays and popups
+  if (!popupUpdateTimer) {
+    scheduleAdaptiveTick()
+  }
+})
+
+onUnmounted(() => {
+  if (popupUpdateTimer) {
+    clearTimeout(popupUpdateTimer)
+    popupUpdateTimer = null
   }
 })
 
@@ -299,7 +410,7 @@ onUnmounted(() => {
               >{{ marker.name }}</strong
             >:
             <code>[ {{ marker.latitude.toFixed(5) }}, {{ marker.longitude.toFixed(5) }} ]</code> @
-            {{ getRelativeTime(marker.timestamp) }}
+            {{ relativeTime(marker.timestamp) }}
           </li>
         </ul>
       </div>
