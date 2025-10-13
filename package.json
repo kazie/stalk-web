@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.1",
-    "@types/jsdom": "^21.1.7",
+    "@types/jsdom": "^27.0.0",
     "@types/leaflet": "^1.9.20",
     "@types/node": "^24.7.0",
     "@vitejs/plugin-vue": "^6.0.1",
