@@ -97,6 +97,50 @@ const relativeTime = (iso: string): string => {
 // Adaptive timer for updating tick and popup contents
 let popupUpdateTimer: ReturnType<typeof setTimeout> | null = null
 
+// Locally track the selected zoom to avoid DOM value being reset by unrelated reactive updates (prevents mobile picker re-opening)
+const selectedZoom = ref<number>(currentZoomLevel.value)
+
+// Track when the user is interacting with the zoom <select> to avoid syncing while the native picker is open
+const isZoomInteracting = ref(false)
+const zoomSelectEl = ref<HTMLSelectElement | null>(null)
+
+const onZoomFocus = () => {
+  isZoomInteracting.value = true
+}
+const onZoomPointerDown = () => {
+  // Triggered by mouse/pointer/touch before the native picker opens
+  isZoomInteracting.value = true
+}
+const onZoomBlur = () => {
+  // User cancelled or closed the picker without committing a change
+  isZoomInteracting.value = false
+}
+
+// Keep the local select value in sync if zoom is changed programmatically elsewhere
+// but do NOT override while the user is interacting with the control
+watch(
+  currentZoomLevel,
+  (z) => {
+    // If the user is interacting (picker open/focused), skip syncing
+    if (isZoomInteracting.value) return
+
+    // As a safety net, also avoid syncing if the select currently has focus
+    const el = zoomSelectEl.value
+    if (el && document.activeElement === el) return
+
+    if (selectedZoom.value !== z) selectedZoom.value = z
+  },
+  { immediate: false },
+)
+
+// Handler invoked when user changes the zoom via the dropdown
+const onZoomChange = () => {
+  // Cast to ZoomLevel since selected value is a number that matches enum values
+  setZoomLevel(selectedZoom.value as ZoomLevel)
+  // Resume syncing after the user committed a change
+  isZoomInteracting.value = false
+}
+
 function refreshRelativeTimesAndPopups() {
   // Advance tick to trigger Vue reactivity for list rendering
   nowTick.value = Date.now()
@@ -198,9 +242,10 @@ const updateMapMarkers = () => {
       // If popup is open, refresh its content immediately
       const popup = existing.marker.getPopup()
       // @ts-ignore cross-version Leaflet guard
-      const isOpen = typeof (existing.marker as any).isPopupOpen === 'function'
-        ? (existing.marker as any).isPopupOpen()
-        : !!(popup as any)?.isOpen?.()
+      const isOpen =
+        typeof (existing.marker as any).isPopupOpen === 'function'
+          ? (existing.marker as any).isPopupOpen()
+          : !!(popup as any)?.isOpen?.()
       if (isOpen) {
         const html = `<b>${markerData.name}</b> ${getRelativeTime(markerData.timestamp)}`
         if (popup) existing.marker.setPopupContent(html)
@@ -211,7 +256,11 @@ const updateMapMarkers = () => {
       const icon = getIconForName(markerData.name)
       const newMarker = L.marker(position, { icon }).addTo(markersLayer!)
       newMarker.bindPopup(`<b>${markerData.name}</b> ${getRelativeTime(markerData.timestamp)}`)
-      markerByName.set(markerData.name, { marker: newMarker, name: markerData.name, timestamp: markerData.timestamp })
+      markerByName.set(markerData.name, {
+        marker: newMarker,
+        name: markerData.name,
+        timestamp: markerData.timestamp,
+      })
     }
   }
 
@@ -224,7 +273,11 @@ const updateMapMarkers = () => {
   }
 
   // Rebuild markerInstances for adaptive popup refresh logic
-  markerInstances = Array.from(markerByName.values()).map(({ marker, name, timestamp }) => ({ marker, name, timestamp }))
+  markerInstances = Array.from(markerByName.values()).map(({ marker, name, timestamp }) => ({
+    marker,
+    name,
+    timestamp,
+  }))
 
   // Adjust the map view if free roaming mode is disabled
   if (!freeRoamingMode.value) {
@@ -371,9 +424,16 @@ onUnmounted(() => {
         </button>
         <label for="zoom-level">🔍</label>
         <select
+          id="zoom-level"
+          ref="zoomSelectEl"
           class="zoom-dropdown"
-          :value="currentZoomLevel"
-          @change="(e: Event) => setZoomLevel(Number((e.target as HTMLSelectElement).value))"
+          v-model.number="selectedZoom"
+          @focus="onZoomFocus"
+          @pointerdown="onZoomPointerDown"
+          @touchstart="onZoomPointerDown"
+          @blur="onZoomBlur"
+          @change="onZoomChange"
+          v-memo="[selectedZoom, isZoomInteracting]"
         >
           <option :value="ZoomLevel.Close">Close</option>
           <option :value="ZoomLevel.Medium">Medium</option>
