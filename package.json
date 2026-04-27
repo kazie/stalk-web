@@ -16,8 +16,8 @@
   "dependencies": {
     "date-fns": "^4.1.0",
     "leaflet": "^1.9.4",
-    "vue": "^3.5.32",
-    "vue-router": "^5.0.4"
+    "vue": "^3.5.33",
+    "vue-router": "^5.0.6"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
