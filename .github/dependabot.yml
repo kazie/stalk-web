@@ -1,6 +1,7 @@
 version: 2
 updates:
-  - package-ecosystem: "pnpm"
+  # Dependabot uses the npm ecosystem for projects managed by pnpm.
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -23,3 +24,11 @@ updates:
     labels:
       - "dependencies"
       - "pnpm"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
