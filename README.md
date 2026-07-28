@@ -16,7 +16,7 @@ Two workflows are configured:
 
 Dependabot is configured to:
 
-- Check for npm dependency updates weekly
+- Check for pnpm dependency updates weekly
 - Group minor and patch updates for production dependencies
 - Group minor and patch updates for development dependencies
 - Keep major updates separate (as they might contain breaking changes)
@@ -38,7 +38,7 @@ The tests are organized by component:
 To run the tests, use the following command:
 
 ```bash
-npm run test:unit
+pnpm test:unit
 ```
 
 ## Test Coverage
@@ -46,7 +46,7 @@ npm run test:unit
 To run the tests with coverage, use the following command:
 
 ```bash
-npm run test:coverage
+pnpm test:coverage
 ```
 
 This will generate a coverage report in the `coverage` directory.
