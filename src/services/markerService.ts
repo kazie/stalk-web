@@ -9,7 +9,7 @@ export interface MarkerData {
 }
 
 // Get the API endpoint from environment variables
-const apiEndpoint = import.meta.env.VITE_API_ENDPOINT as string
+const apiEndpoint = (import.meta.env?.VITE_API_ENDPOINT as string) || '/api/coords'
 
 // Create reactive state for the markers data
 export const markers = ref<MarkerData[]>([])

@@ -15,7 +15,9 @@ const route = useRoute()
 .home-view {
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   max-height: 100vh;
+  max-height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;

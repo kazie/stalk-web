@@ -168,6 +168,35 @@ describe('MapComponent', () => {
     expect(second.text()).toContain('-0.12780')
   })
 
+  it('allows expanding and collapsing the markers menu', async () => {
+    const wrapper = mount(MapComponent)
+    await flushPromises()
+
+    // Initially expanded on desktop / jsdom
+    expect(wrapper.vm.isMenuExpanded).toBe(true)
+    expect(wrapper.find('.markers-info').classes()).not.toContain('collapsed')
+
+    // Click to collapse
+    await wrapper.find('.markers-header').trigger('click')
+    expect(wrapper.vm.isMenuExpanded).toBe(false)
+    expect(wrapper.find('.markers-info').classes()).toContain('collapsed')
+
+    // Click menu toggle button to expand
+    await wrapper.find('.menu-toggle-btn').trigger('click')
+    expect(wrapper.vm.isMenuExpanded).toBe(true)
+    expect(wrapper.find('.markers-info').classes()).not.toContain('collapsed')
+  })
+
+  it('navigates when clicking on a marker name', async () => {
+    const wrapper = mount(MapComponent)
+    await flushPromises()
+
+    const firstMarkerName = wrapper.find('.marker-name')
+    await firstMarkerName.trigger('click')
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/Test Marker 1')
+  })
+
   it('disables the free roaming toggle button when there are no markers', async () => {
     // Save the original mock implementation
     const originalMock = vi.importActual('@/services/markerService')
