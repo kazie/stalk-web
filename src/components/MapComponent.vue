@@ -352,11 +352,8 @@ const navigateTo = (name: string | null) => {
   }
 }
 
-// Menu expansion state for mobile and collapsible targets list
-const isMobile = () =>
-  typeof window !== 'undefined' && window.innerWidth > 0 && window.innerWidth < 768
-
-const isMenuExpanded = ref(!isMobile())
+// Menu expansion state for collapsible targets list (closed by default)
+const isMenuExpanded = ref(false)
 
 const toggleMenu = () => {
   isMenuExpanded.value = !isMenuExpanded.value
@@ -380,6 +377,15 @@ onMounted(() => {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map)
+
+    // Render initial markers if any are already present
+    updateMapMarkers()
+
+    // Ensure map container size is accurately computed in dynamic containers (e.g. Ladle stories, mobile previews)
+    setTimeout(() => {
+      map?.invalidateSize()
+      updateMapMarkers()
+    }, 100)
   }
 
   // Start adaptive ticking to update relative time displays and popups

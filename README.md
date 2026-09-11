@@ -41,6 +41,26 @@ To run the tests, use the following command:
 pnpm test:unit
 ```
 
+## Ladle Stories (Mocked Website)
+
+This project includes Ladle stories for developers to visually preview, test, and interact with mocked versions of the website without running a live backend service.
+
+To start the interactive Ladle stories dev server:
+
+```bash
+pnpm ladle
+```
+
+### Available Stories
+
+- **Overview (Everyone)**: Shows all active global targets on the map with full controls.
+- **Single Target (Kazie)**: Shows single-target tracking mode with zoomed-in focus.
+- **Live Simulation (Moving Targets)**: Real-time animated simulation where mock targets move continuously on the map to test live popups and position tracking.
+- **Mobile Device View**: Renders the application within a simulated mobile frame to test touch targets, viewport scaling, and the collapsible targets drawer.
+- **Clustered Targets (Stockholm)**: Tests closely positioned markers and map zoom behavior.
+- **Empty State (No Targets)**: Tests UI behavior when no markers are available (auto-enforced free roaming).
+- **Error State**: Tests error alerts when the coordinates service fails.
+
 ## Test Coverage
 
 To run the tests with coverage, use the following command:
