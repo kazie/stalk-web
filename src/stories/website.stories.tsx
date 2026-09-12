@@ -9,10 +9,13 @@ export const Everyone: Story = () => {
   return (
     <div
       style={{
-        width: '100vw',
-        height: '100vh',
-        maxWidth: '100%',
-        maxHeight: '100vh',
+        width: '100%',
+        height: '100%',
+        maxHeight: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        flex: '1 1 0%',
+        minHeight: 0,
         overflow: 'hidden',
       }}
     >
@@ -25,7 +28,7 @@ export const Everyone: Story = () => {
             mode: UpdateMode.Live,
           },
         }}
-        containerStyle={{ height: '100vh' }}
+        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
       />
     </div>
   )
@@ -36,10 +39,13 @@ export const SingleTargetKazie: Story = () => {
   return (
     <div
       style={{
-        width: '100vw',
-        height: '100vh',
-        maxWidth: '100%',
-        maxHeight: '100vh',
+        width: '100%',
+        height: '100%',
+        maxHeight: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        flex: '1 1 0%',
+        minHeight: 0,
         overflow: 'hidden',
       }}
     >
@@ -54,7 +60,7 @@ export const SingleTargetKazie: Story = () => {
             zoomLevel: ZoomLevel.Close,
           },
         }}
-        containerStyle={{ height: '100vh' }}
+        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
       />
     </div>
   )
@@ -65,10 +71,13 @@ export const LiveMovementSimulation: Story = () => {
   return (
     <div
       style={{
-        width: '100vw',
-        height: '100vh',
-        maxWidth: '100%',
-        maxHeight: '100vh',
+        width: '100%',
+        height: '100%',
+        maxHeight: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        flex: '1 1 0%',
+        minHeight: 0,
         overflow: 'hidden',
       }}
     >
@@ -82,7 +91,7 @@ export const LiveMovementSimulation: Story = () => {
             freeRoaming: false,
           },
         }}
-        containerStyle={{ height: '100vh' }}
+        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
       />
     </div>
   )
@@ -96,16 +105,23 @@ export const MobileView: Story = () => {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '100vh',
+        width: '100%',
+        height: '100%',
+        maxHeight: '100%',
+        flex: '1 1 0%',
+        minHeight: 0,
         backgroundColor: '#1e1e24',
-        padding: '20px',
+        padding: '12px',
         boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
     >
       <div
         style={{
           width: '390px',
-          height: '800px',
+          maxWidth: '100%',
+          height: '100%',
+          maxHeight: '800px',
           backgroundColor: '#fff',
           borderRadius: '36px',
           boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 12px #2d2d30',
@@ -128,6 +144,7 @@ export const MobileView: Story = () => {
             fontWeight: '600',
             zIndex: 2000,
             userSelect: 'none',
+            flexShrink: 0,
           }}
         >
           <span>09:41</span>
@@ -137,7 +154,16 @@ export const MobileView: Story = () => {
           <span>5G 100%</span>
         </div>
 
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <div
+          style={{
+            flex: '1 1 0%',
+            minHeight: 0,
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <VueStoryWrapper
             component={MapComponent}
             options={{
@@ -146,7 +172,7 @@ export const MobileView: Story = () => {
                 freeRoaming: false,
               },
             }}
-            containerStyle={{ height: '100%' }}
+            containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
           />
         </div>
       </div>
@@ -159,10 +185,13 @@ export const ClusteredCityTargets: Story = () => {
   return (
     <div
       style={{
-        width: '100vw',
-        height: '100vh',
-        maxWidth: '100%',
-        maxHeight: '100vh',
+        width: '100%',
+        height: '100%',
+        maxHeight: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        flex: '1 1 0%',
+        minHeight: 0,
         overflow: 'hidden',
       }}
     >
@@ -175,7 +204,7 @@ export const ClusteredCityTargets: Story = () => {
             zoomLevel: ZoomLevel.Medium,
           },
         }}
-        containerStyle={{ height: '100vh' }}
+        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
       />
     </div>
   )
@@ -186,10 +215,13 @@ export const EmptyStateNoTargets: Story = () => {
   return (
     <div
       style={{
-        width: '100vw',
-        height: '100vh',
-        maxWidth: '100%',
-        maxHeight: '100vh',
+        width: '100%',
+        height: '100%',
+        maxHeight: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        flex: '1 1 0%',
+        minHeight: 0,
         overflow: 'hidden',
       }}
     >
@@ -201,21 +233,23 @@ export const EmptyStateNoTargets: Story = () => {
             freeRoaming: true,
           },
         }}
-        containerStyle={{ height: '100vh' }}
+        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
       />
     </div>
   )
 }
-EmptyStateNoTargets.storyName = 'Empty State (No Targets)'
 
 export const ErrorState: Story = () => {
   return (
     <div
       style={{
-        width: '100vw',
-        height: '100vh',
-        maxWidth: '100%',
-        maxHeight: '100vh',
+        width: '100%',
+        height: '100%',
+        maxHeight: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        flex: '1 1 0%',
+        minHeight: 0,
         overflow: 'hidden',
       }}
     >
@@ -228,7 +262,7 @@ export const ErrorState: Story = () => {
               'Failed to establish connection to tracking backend (/api/coords: 500 Internal Error)',
           },
         }}
-        containerStyle={{ height: '100vh' }}
+        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
       />
     </div>
   )

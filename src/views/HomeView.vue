@@ -14,14 +14,12 @@ const route = useRoute()
 <style scoped>
 .home-view {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   height: 100dvh;
-  max-height: 100vh;
   max-height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  flex: 1;
 }
 </style>

@@ -69,10 +69,13 @@ export const VueStoryWrapper: React.FC<{
       style={{
         width: '100%',
         height: '100%',
-        minHeight: '600px',
+        maxHeight: '100%',
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
+        flex: '1 1 0%',
+        minHeight: 0,
+        overflow: 'hidden',
         ...containerStyle,
       }}
     />

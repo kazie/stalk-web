@@ -96,6 +96,7 @@ const relativeTime = (iso: string): string => {
 
 // Adaptive timer for updating tick and popup contents
 let popupUpdateTimer: ReturnType<typeof setTimeout> | null = null
+let resizeObserver: ResizeObserver | null = null
 
 // Locally track the selected zoom to avoid DOM value being reset by unrelated reactive updates (prevents mobile picker re-opening)
 const selectedZoom = ref<number>(currentZoomLevel.value)
@@ -386,6 +387,11 @@ onMounted(() => {
       map?.invalidateSize()
       updateMapMarkers()
     }, 100)
+
+    resizeObserver = new ResizeObserver(() => {
+      map?.invalidateSize()
+    })
+    resizeObserver.observe(mapContainer.value)
   }
 
   // Start adaptive ticking to update relative time displays and popups
@@ -395,6 +401,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
   if (popupUpdateTimer) {
     clearTimeout(popupUpdateTimer)
     popupUpdateTimer = null
@@ -525,10 +535,11 @@ onUnmounted(() => {
   width: 100%;
   max-width: 100%;
   height: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
-  margin: 0 auto;
-  padding: 10px;
+  margin: 0;
+  padding: 8px;
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
@@ -537,8 +548,8 @@ onUnmounted(() => {
 .map {
   width: 100%;
   max-width: 100%;
-  flex: 1;
-  min-height: 200px;
+  flex: 1 1 0%;
+  min-height: 0;
   border-radius: 8px;
   border: 1px solid #ccc;
   z-index: 1;
@@ -548,9 +559,10 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   flex-wrap: wrap;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 h2 {
@@ -612,16 +624,18 @@ h2 {
 }
 
 .error-message {
+  flex-shrink: 0;
   background-color: #ffebee;
   color: #c62828;
   padding: 8px 12px;
   border-radius: 4px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   font-size: 14px;
 }
 
 .markers-info {
-  margin-top: 12px;
+  margin-top: 8px;
+  flex-shrink: 0;
   border: 1px solid var(--color-border, #eee);
   border-radius: 8px;
   background-color: var(--color-background, #fff);
@@ -632,6 +646,7 @@ h2 {
     box-shadow 0.3s ease;
   z-index: 10;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  max-height: 40vh;
 }
 
 .markers-header {
@@ -643,6 +658,7 @@ h2 {
   padding: 8px 12px;
   border-radius: 6px;
   transition: background-color 0.2s;
+  flex-shrink: 0;
 }
 
 .markers-header:hover {
@@ -683,7 +699,7 @@ h2 {
 }
 
 .markers-body {
-  max-height: 200px;
+  max-height: min(200px, 30vh);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 4px 12px 12px;
@@ -779,7 +795,7 @@ h2 {
   }
 
   .header-controls {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     gap: 6px;
   }
 
@@ -829,7 +845,7 @@ h2 {
   }
 
   .markers-body {
-    max-height: 45vh;
+    max-height: 40vh;
     overflow-y: auto;
     padding: 0 14px 14px;
   }
