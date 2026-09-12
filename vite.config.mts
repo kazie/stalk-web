@@ -7,6 +7,8 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const apiProxyTarget = env.VITE_DEV_PROXY_TARGET
+  const wsProxyTarget = env.VITE_DEV_WS_PROXY_TARGET || apiProxyTarget
 
   return {
     plugins: [
@@ -22,17 +24,25 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
-        '/api': {
-          target: env.VITE_DEV_PROXY_TARGET,
-          changeOrigin: true,
-          // If your API endpoint doesn't start with /api, you can rewrite the path:
-          // rewrite: (path) => path.replace(/^\/api/, '')
-        },
-        '/ws': {
-          target: env.VITE_DEV_PROXY_TARGET,
-          changeOrigin: true,
-          ws: true,
-        },
+        ...(apiProxyTarget
+          ? {
+              '/api': {
+                target: apiProxyTarget,
+                changeOrigin: true,
+                // If your API endpoint doesn't start with /api, you can rewrite the path:
+                // rewrite: (path) => path.replace(/^\/api/, '')
+              },
+            }
+          : {}),
+        ...(wsProxyTarget
+          ? {
+              '/ws': {
+                target: wsProxyTarget,
+                changeOrigin: true,
+                ws: true,
+              },
+            }
+          : {}),
       },
     },
   }

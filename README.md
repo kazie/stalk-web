@@ -41,6 +41,19 @@ To run the tests, use the following command:
 pnpm test:unit
 ```
 
+## Remote backend in dev mode
+
+The dev server forwards same-origin API and WebSocket requests to a remote backend. Copy `.env.template` to `.env.local` and set the proxy target:
+
+```bash
+VITE_API_ENDPOINT=/api/coords
+VITE_DEV_PROXY_TARGET=https://api.example.com
+VITE_DEV_WS_PROXY_TARGET=https://api.example.com
+pnpm dev
+```
+
+The optional `VITE_DEV_WS_PROXY_TARGET` overrides the HTTP target for WebSockets. The browser still connects to `/ws/...` on the Vite dev server, which forwards the connection with WebSocket support enabled.
+
 ## Ladle Stories (Mocked Website)
 
 This project includes Ladle stories for developers to visually preview, test, and interact with mocked versions of the website without running a live backend service.
