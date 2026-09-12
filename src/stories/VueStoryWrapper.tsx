@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react'
-import { createApp, type Component, type App } from 'vue'
-import { createRouter, createMemoryHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import { createApp, h, type Component, type App } from 'vue'
+import { createRouter, createMemoryHistory, RouterView } from 'vue-router'
 import { setupMockEnvironment, type MockScenarioOptions } from './mockService'
 
 export interface VueStoryOptions {
@@ -24,29 +23,32 @@ export const VueStoryWrapper: React.FC<{
 
     const cleanupMock = setupMockEnvironment(options.mock ?? {})
 
+    const routeProps = (route: { params: Record<string, string | string[]> }) => ({
+      ...options.props,
+      ...(typeof route.params.name === 'string' ? { name: route.params.name } : {}),
+    })
+
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
         {
           path: '/',
           name: 'home',
-          component: HomeView,
-          props: { name: undefined },
+          component,
+          props: () => ({ ...options.props, name: undefined }),
         },
         {
           path: '/:name',
           name: 'user',
-          component: HomeView,
-          props: true,
+          component,
+          props: routeProps,
         },
       ],
     })
 
-    if (options.initialRoute) {
-      router.push(options.initialRoute)
-    }
+    void router.push(options.initialRoute ?? '/')
 
-    const app = createApp(component, options.props)
+    const app = createApp({ render: () => h(RouterView) })
     app.use(router)
 
     if (options.setup) {

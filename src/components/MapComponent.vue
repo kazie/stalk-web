@@ -312,6 +312,7 @@ watch(
       }
     } else {
       // Start updates for all markers
+      currentName.value = null
       if (updateMode.value === UpdateMode.Live) {
         startLive()
       } else {
@@ -486,8 +487,8 @@ onUnmounted(() => {
       <div
         class="markers-header"
         @click="toggleMenu"
-        @keydown.enter="toggleMenu"
-        @keydown.space.prevent="toggleMenu"
+        @keydown.enter.self="toggleMenu"
+        @keydown.space.self.prevent="toggleMenu"
         role="button"
         tabindex="0"
         :aria-expanded="isMenuExpanded"
@@ -543,6 +544,7 @@ onUnmounted(() => {
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
+  container: map-container / inline-size;
 }
 
 .map {
@@ -789,7 +791,7 @@ h2 {
 }
 
 /* Mobile specific styling */
-@media (max-width: 768px) {
+@container map-container (max-width: 768px) {
   .map-container {
     padding: 6px;
   }

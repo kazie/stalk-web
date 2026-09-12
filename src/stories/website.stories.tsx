@@ -260,6 +260,7 @@ export const ErrorState: Story = () => {
             initialMarkers: [],
             error:
               'Failed to establish connection to tracking backend (/api/coords: 500 Internal Error)',
+            mode: UpdateMode.Poll,
           },
         }}
         containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
