@@ -83,6 +83,8 @@ vi.mock('leaflet', () => {
 
   const mapMock = vi.fn(() => ({
     setView: vi.fn().mockReturnThis(),
+    fitBounds: vi.fn().mockReturnThis(),
+    invalidateSize: vi.fn().mockReturnThis(),
     remove: vi.fn(),
   }))
 
@@ -90,9 +92,23 @@ vi.mock('leaflet', () => {
     addTo: vi.fn(),
   }))
 
+  const layerGroupMock = vi.fn(() => ({
+    addTo: vi.fn().mockReturnThis(),
+    removeLayer: vi.fn(),
+    clearLayers: vi.fn(),
+  }))
+
+  const latLngBoundsMock = vi.fn(() => ({
+    extend: vi.fn(),
+    isValid: vi.fn().mockReturnValue(true),
+  }))
+
   const markerMock = vi.fn(() => ({
     addTo: vi.fn().mockReturnThis(),
     bindPopup: vi.fn().mockReturnThis(),
+    getPopup: vi.fn().mockReturnValue(null),
+    setPopupContent: vi.fn().mockReturnThis(),
+    setLatLng: vi.fn().mockReturnThis(),
   }))
 
   const iconMock = vi.fn(() => ({
@@ -106,6 +122,8 @@ vi.mock('leaflet', () => {
     default: {
       map: mapMock,
       tileLayer: tileLayerMock,
+      layerGroup: layerGroupMock,
+      latLngBounds: latLngBoundsMock,
       marker: markerMock,
       icon: iconMock,
       latLng: latLngMock,
@@ -168,6 +186,35 @@ describe('MapComponent', () => {
     expect(second.text()).toContain('-0.12780')
   })
 
+  it('allows expanding and collapsing the markers menu', async () => {
+    const wrapper = mount(MapComponent)
+    await flushPromises()
+
+    // Initially collapsed by default
+    expect(wrapper.vm.isMenuExpanded).toBe(false)
+    expect(wrapper.find('.markers-info').classes()).toContain('collapsed')
+
+    // Click header to expand
+    await wrapper.find('.markers-header').trigger('click')
+    expect(wrapper.vm.isMenuExpanded).toBe(true)
+    expect(wrapper.find('.markers-info').classes()).not.toContain('collapsed')
+
+    // Click menu toggle button to collapse
+    await wrapper.find('.menu-toggle-btn').trigger('click')
+    expect(wrapper.vm.isMenuExpanded).toBe(false)
+    expect(wrapper.find('.markers-info').classes()).toContain('collapsed')
+  })
+
+  it('navigates when clicking on a marker name', async () => {
+    const wrapper = mount(MapComponent)
+    await flushPromises()
+
+    const firstMarkerName = wrapper.find('.marker-name')
+    await firstMarkerName.trigger('click')
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/Test Marker 1')
+  })
+
   it('disables the free roaming toggle button when there are no markers', async () => {
     // Save the original mock implementation
     const originalMock = vi.importActual('@/services/markerService')
@@ -207,6 +254,10 @@ describe('MapComponent', () => {
     // Should start live updates by default
     const markerService = await import('@/services/markerService')
     expect(markerService.startLive).toHaveBeenCalled()
+
+    // Should create and add markers to the map layer
+    expect(L.default.layerGroup).toHaveBeenCalled()
+    expect(L.default.marker).toHaveBeenCalled()
   })
 
   it('cleans up the map and stops fetching when unmounted', async () => {

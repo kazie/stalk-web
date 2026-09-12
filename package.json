@@ -16,7 +16,8 @@
     "test:coverage": "vitest run --coverage",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "ladle": "ladle serve"
   },
   "dependencies": {
     "date-fns": "^4.4.0",
@@ -25,10 +26,13 @@
     "vue-router": "^5.3.1"
   },
   "devDependencies": {
+    "@ladle/react": "^5.1.1",
     "@tsconfig/node26": "^26.0.1",
     "@types/jsdom": "^30.0.0",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^26.4.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/coverage-v8": "^4.1.11",
     "@vue/test-utils": "^2.5.0",
@@ -36,6 +40,8 @@
     "jsdom": "^30.0.1",
     "npm-run-all2": "^9.0.3",
     "prettier": "^3.9.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "typescript": "~7.0.2",
     "vite": "^8.2.2",
     "vite-plugin-vue-devtools": "^8.2.1",

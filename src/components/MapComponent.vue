@@ -96,6 +96,7 @@ const relativeTime = (iso: string): string => {
 
 // Adaptive timer for updating tick and popup contents
 let popupUpdateTimer: ReturnType<typeof setTimeout> | null = null
+let resizeObserver: ResizeObserver | null = null
 
 // Locally track the selected zoom to avoid DOM value being reset by unrelated reactive updates (prevents mobile picker re-opening)
 const selectedZoom = ref<number>(currentZoomLevel.value)
@@ -311,6 +312,7 @@ watch(
       }
     } else {
       // Start updates for all markers
+      currentName.value = null
       if (updateMode.value === UpdateMode.Live) {
         startLive()
       } else {
@@ -352,9 +354,18 @@ const navigateTo = (name: string | null) => {
   }
 }
 
+// Menu expansion state for collapsible targets list (closed by default)
+const isMenuExpanded = ref(false)
+
+const toggleMenu = () => {
+  isMenuExpanded.value = !isMenuExpanded.value
+}
+
 // Expose methods for testing
 defineExpose({
   navigateTo,
+  isMenuExpanded,
+  toggleMenu,
 })
 
 // Initialize the map when the component is mounted
@@ -368,6 +379,20 @@ onMounted(() => {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map)
+
+    // Render initial markers if any are already present
+    updateMapMarkers()
+
+    // Ensure map container size is accurately computed in dynamic containers (e.g. Ladle stories, mobile previews)
+    setTimeout(() => {
+      map?.invalidateSize()
+      updateMapMarkers()
+    }, 100)
+
+    resizeObserver = new ResizeObserver(() => {
+      map?.invalidateSize()
+    })
+    resizeObserver.observe(mapContainer.value)
   }
 
   // Start adaptive ticking to update relative time displays and popups
@@ -377,6 +402,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
   if (popupUpdateTimer) {
     clearTimeout(popupUpdateTimer)
     popupUpdateTimer = null
@@ -454,25 +483,49 @@ onUnmounted(() => {
     </div>
     <div v-if="error" class="error-message">{{ error }}</div>
     <div ref="mapContainer" class="map"></div>
-    <div class="markers-info">
-      <div v-if="markers.length === 0 && !isLoading" class="no-markers">No markers available</div>
-      <div v-else class="markers-list">
+    <div class="markers-info" :class="{ collapsed: !isMenuExpanded }">
+      <div
+        class="markers-header"
+        @click="toggleMenu"
+        @keydown.enter.self="toggleMenu"
+        @keydown.space.self.prevent="toggleMenu"
+        role="button"
+        tabindex="0"
+        :aria-expanded="isMenuExpanded"
+      >
         <h3>
           Current Markers ({{ markers.length }})
-          <span v-if="currentName" class="view-all" @click="navigateTo(null)">View All</span>
+          <span v-if="currentName" class="view-all" @click.stop="navigateTo(null)">View All</span>
         </h3>
-        <ul>
-          <li v-for="marker in markers" :key="marker.name">
-            <strong
-              class="marker-name"
-              :class="{ current: marker.name === currentName }"
-              @click="navigateTo(marker.name)"
-              >{{ marker.name }}</strong
-            >:
-            <code>[ {{ marker.latitude.toFixed(5) }}, {{ marker.longitude.toFixed(5) }} ]</code> @
-            {{ relativeTime(marker.timestamp) }}
-          </li>
-        </ul>
+        <button
+          class="menu-toggle-btn"
+          type="button"
+          :aria-label="isMenuExpanded ? 'Collapse markers menu' : 'Expand markers menu'"
+          @click.stop="toggleMenu"
+        >
+          <span class="chevron" :class="{ open: isMenuExpanded }">▾</span>
+        </button>
+      </div>
+      <div v-show="isMenuExpanded" class="markers-body">
+        <div v-if="markers.length === 0 && !isLoading" class="no-markers">No markers available</div>
+        <div v-else class="markers-list">
+          <ul>
+            <li v-for="marker in markers" :key="marker.name" class="marker-item">
+              <span class="marker-item-main">
+                <strong
+                  class="marker-name"
+                  :class="{ current: marker.name === currentName }"
+                  @click="navigateTo(marker.name)"
+                  >{{ marker.name }}</strong
+                >:
+                <code class="marker-coords"
+                  >[ {{ marker.latitude.toFixed(5) }}, {{ marker.longitude.toFixed(5) }} ]</code
+                >
+              </span>
+              <span class="marker-time">@ {{ relativeTime(marker.timestamp) }}</span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>
@@ -483,69 +536,84 @@ onUnmounted(() => {
   width: 100%;
   max-width: 100%;
   height: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
-  margin: 0 auto;
-  padding: 10px;
+  margin: 0;
+  padding: 8px;
   box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  container: map-container / inline-size;
 }
 
 .map {
-  height: calc(100vh - 200px);
   width: 100%;
   max-width: 100%;
+  flex: 1 1 0%;
+  min-height: 0;
   border-radius: 8px;
   border: 1px solid #ccc;
-  flex: 1;
+  z-index: 1;
 }
 
 .header-controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 h2 {
-  margin-bottom: 8px;
+  margin: 0;
+  font-size: 1.25rem;
   display: flex;
   align-items: center;
-  margin-right: 16px;
 }
 
 .controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .frequency-dropdown,
-.zoom-dropdown,
-.mode-dropdown {
+.zoom-dropdown {
   padding: 6px 10px;
   border-radius: 4px;
   border: 1px solid #ccc;
   background-color: #fff;
   font-size: 14px;
   cursor: pointer;
+  min-height: 36px;
 }
 
-.free-roaming-toggle {
+.free-roaming-toggle,
+.live-toggle {
   padding: 6px 12px;
   border-radius: 4px;
   border: 1px solid #ccc;
   background-color: #f5f5f5;
   font-size: 14px;
   cursor: pointer;
+  min-height: 36px;
   transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.free-roaming-toggle:hover {
+.free-roaming-toggle:hover,
+.live-toggle:hover {
   background-color: #e0e0e0;
 }
 
-.free-roaming-toggle.active {
+.free-roaming-toggle.active,
+.live-toggle.active {
   background-color: #42b983;
   color: white;
   border-color: #42b983;
@@ -557,48 +625,86 @@ h2 {
   background-color: #f0f0f0;
 }
 
-/* LIVE mode toggle button */
-.live-toggle {
-  padding: 6px 12px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  background-color: #f5f5f5;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.live-toggle:hover {
-  background-color: #e0e0e0;
-}
-
-.live-toggle.active {
-  background-color: #42b983;
-  color: white;
-  border-color: #42b983;
-}
-
-h3 {
-  margin-top: 16px;
-  margin-bottom: 8px;
-  font-size: 16px;
-}
-
 .error-message {
+  flex-shrink: 0;
   background-color: #ffebee;
   color: #c62828;
   padding: 8px 12px;
   border-radius: 4px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   font-size: 14px;
 }
 
 .markers-info {
-  margin-top: 16px;
-  max-height: 150px;
+  margin-top: 8px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border, #eee);
+  border-radius: 8px;
+  background-color: var(--color-background, #fff);
+  display: flex;
+  flex-direction: column;
+  transition:
+    max-height 0.3s ease,
+    box-shadow 0.3s ease;
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  max-height: 40vh;
+}
+
+.markers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.markers-header:hover {
+  background-color: var(--color-background-soft, #f8f8f8);
+}
+
+.markers-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-toggle-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text, #333);
+  border-radius: 4px;
+}
+
+.chevron {
+  display: inline-block;
+  transition: transform 0.25s ease;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.chevron.open {
+  transform: rotate(180deg);
+}
+
+.markers-body {
+  max-height: min(200px, 30vh);
   overflow-y: auto;
-  border-top: 1px solid #eee;
-  padding-top: 8px;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 12px 12px;
 }
 
 .no-markers {
@@ -613,34 +719,53 @@ h3 {
   margin: 0;
 }
 
-.markers-list li {
-  padding: 4px 0;
-  border-bottom: 1px solid #f5f5f5;
+.marker-item {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border, #f5f5f5);
   font-size: 14px;
-  color: #333;
+  color: var(--color-text, #333);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
 }
 
-@keyframes pulse {
-  0% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.6;
-  }
+.marker-item-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.marker-coords {
+  background: var(--color-background-mute, #f5f5f5);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.marker-time {
+  font-size: 13px;
+  color: #666;
+  white-space: nowrap;
 }
 
 .marker-name {
   cursor: pointer;
-  color: #2c3e50;
-  transition: color 0.2s;
+  color: var(--color-heading, #2c3e50);
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition:
+    color 0.2s,
+    background-color 0.2s;
 }
 
 .marker-name:hover {
   color: #42b983;
   text-decoration: underline;
+  background-color: var(--color-background-soft, #f0f0f0);
 }
 
 .marker-name.current {
@@ -649,15 +774,94 @@ h3 {
 }
 
 .view-all {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: normal;
-  margin-left: 10px;
+  margin-left: 8px;
   color: #42b983;
   cursor: pointer;
-  transition: color 0.2s;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: rgba(66, 185, 131, 0.1);
+  transition: background-color 0.2s;
 }
 
 .view-all:hover {
+  background-color: rgba(66, 185, 131, 0.2);
   text-decoration: underline;
+}
+
+/* Mobile specific styling */
+@container map-container (max-width: 768px) {
+  .map-container {
+    padding: 6px;
+  }
+
+  .header-controls {
+    margin-bottom: 6px;
+    gap: 6px;
+  }
+
+  h2 {
+    font-size: 1.05rem;
+    width: 100%;
+  }
+
+  .controls {
+    width: 100%;
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .frequency-dropdown,
+  .zoom-dropdown {
+    font-size: 13px;
+    padding: 4px 6px;
+    min-height: 34px;
+  }
+
+  .free-roaming-toggle,
+  .live-toggle {
+    font-size: 13px;
+    padding: 4px 8px;
+    min-height: 34px;
+  }
+
+  .markers-info {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    right: 6px;
+    margin-top: 0;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    background: var(--color-background, rgba(255, 255, 255, 0.96));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 1000;
+  }
+
+  .markers-header {
+    padding: 10px 14px;
+    min-height: 44px; /* standard mobile touch target */
+  }
+
+  .markers-body {
+    max-height: 40vh;
+    overflow-y: auto;
+    padding: 0 14px 14px;
+  }
+
+  .marker-item {
+    padding: 10px 0;
+    min-height: 44px;
+  }
+
+  .marker-name {
+    font-size: 15px;
+    padding: 4px 8px;
+    background-color: var(--color-background-soft, #f0f0f0);
+    border-radius: 4px;
+  }
 }
 </style>
