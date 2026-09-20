@@ -28,8 +28,11 @@ describe('markerService', () => {
     updateFrequency.value = 5000
     currentZoomLevel.value = ZoomLevel.Medium
 
-    // Reset mocks
-    vi.clearAllMocks()
+    // Use a successful response by default. Individual error tests override it.
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    })
   })
 
   afterEach(() => {

@@ -9,7 +9,7 @@ export interface MarkerData {
 }
 
 // Get the API endpoint from environment variables
-const apiEndpoint = (import.meta.env?.VITE_API_ENDPOINT as string) || '/api/coords'
+const apiEndpoint = import.meta.env.VITE_API_ENDPOINT
 
 // Create reactive state for the markers data
 export const markers = ref<MarkerData[]>([])
@@ -158,7 +158,6 @@ export const fetchMarkerData = async (): Promise<void> => {
     const data = await response.json()
     markers.value = data
   } catch (err) {
-    console.error('Error fetching marker data:', err)
     error.value = err instanceof Error ? err.message : 'Unknown error occurred'
   } finally {
     isLoading.value = false
@@ -185,7 +184,6 @@ export const fetchMarkerByName = async (name: string): Promise<void> => {
     // If the API returns a single object, wrap it in an array
     markers.value = Array.isArray(data) ? data : [data]
   } catch (err) {
-    console.error(`Error fetching marker data for ${name}:`, err)
     error.value = err instanceof Error ? err.message : 'Unknown error occurred'
     markers.value = [] // Clear markers on error
   } finally {
@@ -266,4 +264,11 @@ export const stopUpdates = (): void => {
   } catch (e) {
     // ignore
   }
+}
+
+export const removeMarkerByName = (name: string): void => {
+  const normalizedName = name.trim().toLocaleLowerCase()
+  markers.value = markers.value.filter(
+    (marker) => marker.name.trim().toLocaleLowerCase() !== normalizedName,
+  )
 }
