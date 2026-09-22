@@ -8,6 +8,9 @@ export interface MarkerData {
   timestamp: string
 }
 
+// Discriminated union for messages received over the live websocket feed
+export type WsEvent = ({ type: 'update' } & MarkerData) | { type: 'delete'; name: string }
+
 // Get the API endpoint from environment variables
 const apiEndpoint = import.meta.env.VITE_API_ENDPOINT
 
@@ -96,8 +99,13 @@ const connectWs = (name?: string) => {
 
   ws.onmessage = (evt: MessageEvent) => {
     try {
-      const data = JSON.parse(evt.data as string) as MarkerData
-      applyMarkerUpdate(data)
+      const data = JSON.parse(evt.data as string) as WsEvent
+      if (data.type === 'update') {
+        const { type: _type, ...marker } = data
+        applyMarkerUpdate(marker)
+      } else if (data.type === 'delete') {
+        removeMarkerByName(data.name)
+      }
     } catch (e) {
       console.error('WS message parse error', e)
     }
