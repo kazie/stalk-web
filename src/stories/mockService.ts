@@ -164,7 +164,9 @@ export function setupMockEnvironment(options: MockScenarioOptions = {}): () => v
         this.onopen?.(new Event('open'))
         if (currentMarkers && currentMarkers.length > 0) {
           for (const m of currentMarkers) {
-            this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(m) }))
+            this.onmessage?.(
+              new MessageEvent('message', { data: JSON.stringify({ type: 'update', ...m }) }),
+            )
           }
         }
       }, 50)

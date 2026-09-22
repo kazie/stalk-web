@@ -10,13 +10,37 @@ import {
   setUpdateFrequency,
   startFetching,
   startFetchingByName,
+  startLive,
+  startLiveByName,
   stopFetching,
+  stopLive,
   toggleFreeRoamingMode,
   updateFrequency,
   currentZoomLevel,
   setZoomLevel,
   ZoomLevel,
 } from '../services/markerService'
+
+// Minimal mock WebSocket that lets tests drive onopen/onmessage/onclose manually
+class MockWebSocket {
+  static instances: MockWebSocket[] = []
+  onopen: ((e: Event) => void) | null = null
+  onmessage: ((e: MessageEvent) => void) | null = null
+  onerror: ((e: Event) => void) | null = null
+  onclose: ((e: CloseEvent) => void) | null = null
+  readyState = 1
+  constructor(public url: string) {
+    MockWebSocket.instances.push(this)
+  }
+  send(): void {}
+  close(): void {
+    this.readyState = 3
+    this.onclose?.(new CloseEvent('close'))
+  }
+  emitMessage(data: unknown): void {
+    this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(data) }))
+  }
+}
 
 // Mock fetch API
 global.fetch = vi.fn()
@@ -54,9 +78,16 @@ describe('markerService', () => {
 
     // @ts-ignore - TypeScript doesn't know we're mocking fetch
     global.fetch.mockResolvedValue(mockResponse)
+
+    // Mock WebSocket for live-mode tests
+    MockWebSocket.instances = []
+    // @ts-ignore - assigning a test double in place of the real WebSocket constructor
+    vi.stubGlobal('WebSocket', MockWebSocket)
   })
 
   afterEach(() => {
+    // Stop any live connection started during the test before restoring mocks
+    stopLive()
     // Clean up after each test
     vi.restoreAllMocks()
   })
@@ -246,6 +277,76 @@ describe('markerService', () => {
       // Set back to Medium
       setZoomLevel(ZoomLevel.Medium)
       expect(currentZoomLevel.value).toBe(ZoomLevel.Medium)
+    })
+  })
+
+  describe('live websocket updates', () => {
+    it('upserts markers on update events (all-users view)', () => {
+      startLive()
+      const ws = MockWebSocket.instances[0]
+
+      ws.emitMessage({
+        type: 'update',
+        name: 'Alice',
+        latitude: 1,
+        longitude: 2,
+        timestamp: '2023-01-01T00:00:00Z',
+      })
+      expect(markers.value).toEqual([
+        { name: 'Alice', latitude: 1, longitude: 2, timestamp: '2023-01-01T00:00:00Z' },
+      ])
+
+      ws.emitMessage({
+        type: 'update',
+        name: 'Bob',
+        latitude: 3,
+        longitude: 4,
+        timestamp: '2023-01-01T00:00:01Z',
+      })
+      expect(markers.value.map((m) => m.name)).toEqual(['Alice', 'Bob'])
+    })
+
+    it('removes the matching marker on a delete event (all-users view)', () => {
+      startLive()
+      const ws = MockWebSocket.instances[0]
+
+      ws.emitMessage({
+        type: 'update',
+        name: 'Alice',
+        latitude: 1,
+        longitude: 2,
+        timestamp: '2023-01-01T00:00:00Z',
+      })
+      ws.emitMessage({
+        type: 'update',
+        name: 'Bob',
+        latitude: 3,
+        longitude: 4,
+        timestamp: '2023-01-01T00:00:01Z',
+      })
+      expect(markers.value.length).toBe(2)
+
+      ws.emitMessage({ type: 'delete', name: 'Alice' })
+
+      expect(markers.value.map((m) => m.name)).toEqual(['Bob'])
+    })
+
+    it('removes the marker on a delete event for the currently viewed user (single-user view)', () => {
+      startLiveByName('Alice')
+      const ws = MockWebSocket.instances[0]
+
+      ws.emitMessage({
+        type: 'update',
+        name: 'Alice',
+        latitude: 1,
+        longitude: 2,
+        timestamp: '2023-01-01T00:00:00Z',
+      })
+      expect(markers.value.length).toBe(1)
+
+      ws.emitMessage({ type: 'delete', name: 'Alice' })
+
+      expect(markers.value).toEqual([])
     })
   })
 })
