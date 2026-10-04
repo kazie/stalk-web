@@ -1,34 +1,89 @@
-@import './base.css';
+/* Cascade layers decide which styles win, whatever order files are imported in: the reset and
+   the app's general element styles lose to MapLibre's, and the unlayered rules below win over all. */
+@layer base, app, vendor;
+@import './base.css' layer(base);
+@import 'maplibre-gl/dist/maplibre-gl.css' layer(vendor);
 
-#app {
-  width: 100%;
-  max-width: 100vw;
-  height: 100%;
-  height: 100dvh;
-  max-height: 100dvh;
-  margin: 0;
-  padding: 0;
-  font-weight: normal;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
+@layer app {
+  #app {
+    width: 100%;
+    max-width: 100vw;
+    height: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    font-weight: normal;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
-}
+  a,
+  .green {
+    text-decoration: none;
+    color: hsla(160, 100%, 37%, 1);
+    transition: 0.4s;
+    padding: 3px;
+  }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+  @media (hover: hover) {
+    a:hover {
+      background-color: hsla(160, 100%, 37%, 0.2);
+    }
   }
 }
 
 .rounded-icon {
   border-radius: 50%;
   filter: drop-shadow(0 0 4px #000) drop-shadow(0 0 6px #0006);
+}
+
+.map-style-switcher {
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  padding: 6px 4px;
+  font: inherit;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+}
+
+/* Map popups follow the app's light/dark theme instead of MapLibre's fixed white. */
+.maplibregl-popup {
+  --popup-background: var(--color-background-mute);
+}
+
+.maplibregl-popup-content {
+  background: var(--popup-background);
+  color: var(--color-heading);
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.4);
+}
+
+.maplibregl-popup-content b {
+  font-weight: bold;
+}
+
+.maplibregl-popup-close-button {
+  color: inherit;
+}
+
+/* The tip is a CSS triangle: colour the side facing the popup, per anchor. */
+.maplibregl-popup[class*='anchor-top'] .maplibregl-popup-tip {
+  border-bottom-color: var(--popup-background);
+}
+
+.maplibregl-popup[class*='anchor-bottom'] .maplibregl-popup-tip {
+  border-top-color: var(--popup-background);
+}
+
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--popup-background);
+}
+
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--popup-background);
 }

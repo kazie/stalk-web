@@ -94,4 +94,4 @@ When adding new components to the application, follow these patterns to create c
 
 ## Mocking Dependencies
 
-For components that depend on external libraries (like Leaflet in MapComponent), use Vitest's mocking capabilities to mock the dependencies. See `MapComponent.spec.ts` for an example.
+For components that depend on external libraries (like MapLibre GL in MapComponent), use Vitest's mocking capabilities to mock the dependencies. See `MapComponent.spec.ts` for an example.

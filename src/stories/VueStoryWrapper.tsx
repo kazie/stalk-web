@@ -13,8 +13,7 @@ export interface VueStoryOptions {
 export const VueStoryWrapper: React.FC<{
   component: Component
   options?: VueStoryOptions
-  containerStyle?: React.CSSProperties
-}> = ({ component, options = {}, containerStyle }) => {
+}> = ({ component, options = {} }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<App | null>(null)
 
@@ -78,7 +77,6 @@ export const VueStoryWrapper: React.FC<{
         flex: '1 1 0%',
         minHeight: 0,
         overflow: 'hidden',
-        ...containerStyle,
       }}
     />
   )

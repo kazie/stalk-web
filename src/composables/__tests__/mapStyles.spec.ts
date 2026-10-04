@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { StyleSpecification } from 'maplibre-gl'
-import { englishLabel, toEnglishLabels } from '../mapBaseLayers'
+import { englishLabel, toEnglishLabels, withElevation } from '../mapStyles'
 
 const style = {
   version: 8,
@@ -55,5 +55,26 @@ describe('toEnglishLabels', () => {
 
   it('does not mutate the input style', () => {
     expect((style.layers[2] as any).layout['text-field'][0]).toBe('case')
+  })
+})
+
+describe('withElevation', () => {
+  const result = withElevation(style)
+
+  it('adds hill shading below the first label layer', () => {
+    expect(result.layers.map((layer) => layer.id)).toEqual([
+      'background',
+      'water',
+      'hillshade',
+      'label_city',
+      'road_shield',
+      'icon_only',
+    ])
+  })
+
+  it('adds 3D terrain from its own elevation source', () => {
+    expect(result.terrain).toEqual({ source: 'terrain' })
+    expect(result.sources.terrain?.type).toBe('raster-dem')
+    expect(result.sources.hillshade?.type).toBe('raster-dem')
   })
 })

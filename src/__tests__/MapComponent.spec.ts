@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { nextTick, ref } from 'vue'
 import MapComponent from '../components/MapComponent.vue'
 import * as markerService from '../services/markerService'
 
@@ -10,6 +10,11 @@ vi.mock('vue-router', () => ({
   useRouter: vi.fn(() => ({
     push: mockRouterPush,
   })),
+}))
+
+// The map needs WebGL, which jsdom lacks; these tests cover updates and routing.
+vi.mock('../composables/useMapMarkers', () => ({
+  useMapMarkers: () => ({ mapContainer: ref(null), mapError: ref(null) }),
 }))
 
 // Mock the markerService

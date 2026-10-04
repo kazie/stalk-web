@@ -17,14 +17,14 @@ import {
 import MapToolbar from './MapToolbar.vue'
 import MarkerList from './MarkerList.vue'
 import StalkingPanel from './StalkingPanel.vue'
-import { useLeafletMarkers } from '@/composables/useLeafletMarkers'
+import { useMapMarkers } from '@/composables/useMapMarkers'
 
 const props = defineProps<{
   name?: string
 }>()
 
 const router = useRouter()
-const { mapContainer } = useLeafletMarkers()
+const { mapContainer, mapError } = useMapMarkers()
 const isMenuExpanded = ref(false)
 
 const startMarkerUpdates = (name?: string): void => {
@@ -65,6 +65,7 @@ onUnmounted(() => {
     <div class="map-content">
       <MapToolbar :current-name="currentName" />
       <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-if="mapError" class="error-message">{{ mapError }}</div>
       <div ref="mapContainer" class="map"></div>
       <MarkerList
         :markers="markers"

@@ -1,101 +1,55 @@
 import React from 'react'
 import type { Story } from '@ladle/react'
-import { VueStoryWrapper } from './VueStoryWrapper'
+import { VueStoryWrapper, type VueStoryOptions } from './VueStoryWrapper'
 import MapComponent from '../components/MapComponent.vue'
-import { SAMPLE_MARKERS, CLUSTERED_MARKERS } from './mockService'
+import { SAMPLE_MARKERS, CLUSTERED_MARKERS, MOUNTAIN_MARKERS } from './mockService'
 import { ZoomLevel, UpdateMode } from '../services/markerService'
 
-export const Everyone: Story = () => {
-  return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        maxHeight: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        flex: '1 1 0%',
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
-    >
-      <VueStoryWrapper
-        component={MapComponent}
-        options={{
-          mock: {
-            initialMarkers: SAMPLE_MARKERS,
-            freeRoaming: false,
-            mode: UpdateMode.Live,
-          },
-        }}
-        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
-      />
-    </div>
-  )
-}
+// The map filling the whole story area.
+const MapStory: React.FC<{ options: VueStoryOptions }> = ({ options }) => (
+  <VueStoryWrapper component={MapComponent} options={options} />
+)
+
+export const Everyone: Story = () => (
+  <MapStory
+    options={{
+      mock: {
+        initialMarkers: SAMPLE_MARKERS,
+        freeRoaming: false,
+        mode: UpdateMode.Live,
+      },
+    }}
+  />
+)
 Everyone.storyName = 'Overview (Everyone)'
 
-export const SingleTargetKazie: Story = () => {
-  return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        maxHeight: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        flex: '1 1 0%',
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
-    >
-      <VueStoryWrapper
-        component={MapComponent}
-        options={{
-          props: { name: 'kazie' },
-          initialRoute: '/kazie',
-          mock: {
-            currentName: 'kazie',
-            initialMarkers: SAMPLE_MARKERS,
-            zoomLevel: ZoomLevel.Close,
-          },
-        }}
-        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
-      />
-    </div>
-  )
-}
+export const SingleTargetKazie: Story = () => (
+  <MapStory
+    options={{
+      props: { name: 'kazie' },
+      initialRoute: '/kazie',
+      mock: {
+        currentName: 'kazie',
+        initialMarkers: SAMPLE_MARKERS,
+        zoomLevel: ZoomLevel.Close,
+      },
+    }}
+  />
+)
 SingleTargetKazie.storyName = 'Single Target (Kazie)'
 
-export const LiveMovementSimulation: Story = () => {
-  return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        maxHeight: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        flex: '1 1 0%',
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
-    >
-      <VueStoryWrapper
-        component={MapComponent}
-        options={{
-          mock: {
-            initialMarkers: SAMPLE_MARKERS,
-            simulateMovement: true,
-            movementIntervalMs: 1200,
-            freeRoaming: false,
-          },
-        }}
-        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
-      />
-    </div>
-  )
-}
+export const LiveMovementSimulation: Story = () => (
+  <MapStory
+    options={{
+      mock: {
+        initialMarkers: SAMPLE_MARKERS,
+        simulateMovement: true,
+        movementIntervalMs: 1200,
+        freeRoaming: false,
+      },
+    }}
+  />
+)
 LiveMovementSimulation.storyName = 'Live Simulation (Moving Targets)'
 
 export const MobileView: Story = () => {
@@ -122,7 +76,7 @@ export const MobileView: Story = () => {
           maxWidth: '100%',
           height: '100%',
           maxHeight: '800px',
-          backgroundColor: '#fff',
+          backgroundColor: 'var(--color-background)',
           borderRadius: '36px',
           boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 12px #2d2d30',
           overflow: 'hidden',
@@ -135,7 +89,8 @@ export const MobileView: Story = () => {
         <div
           style={{
             height: '28px',
-            backgroundColor: '#fff',
+            backgroundColor: 'var(--color-background)',
+            color: 'var(--color-heading)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -154,118 +109,74 @@ export const MobileView: Story = () => {
           <span>5G 100%</span>
         </div>
 
-        <div
-          style={{
-            flex: '1 1 0%',
-            minHeight: 0,
-            position: 'relative',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
+        <MapStory
+          options={{
+            mock: {
+              initialMarkers: SAMPLE_MARKERS,
+              freeRoaming: false,
+            },
           }}
-        >
-          <VueStoryWrapper
-            component={MapComponent}
-            options={{
-              mock: {
-                initialMarkers: SAMPLE_MARKERS,
-                freeRoaming: false,
-              },
-            }}
-            containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
-          />
-        </div>
+        />
       </div>
     </div>
   )
 }
 MobileView.storyName = 'Mobile Device View (iPhone 390px)'
 
-export const ClusteredCityTargets: Story = () => {
-  return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        maxHeight: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        flex: '1 1 0%',
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
-    >
-      <VueStoryWrapper
-        component={MapComponent}
-        options={{
-          mock: {
-            initialMarkers: CLUSTERED_MARKERS,
-            freeRoaming: false,
-            zoomLevel: ZoomLevel.Medium,
-          },
-        }}
-        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
-      />
-    </div>
-  )
-}
+export const ClusteredCityTargets: Story = () => (
+  <MapStory
+    options={{
+      mock: {
+        initialMarkers: CLUSTERED_MARKERS,
+        freeRoaming: false,
+        zoomLevel: ZoomLevel.Medium,
+      },
+    }}
+  />
+)
 ClusteredCityTargets.storyName = 'Clustered Targets (Stockholm)'
 
-export const EmptyStateNoTargets: Story = () => {
-  return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        maxHeight: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        flex: '1 1 0%',
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
-    >
-      <VueStoryWrapper
-        component={MapComponent}
-        options={{
-          mock: {
-            initialMarkers: [],
-            freeRoaming: true,
-          },
-        }}
-        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
-      />
-    </div>
-  )
-}
+export const EmptyStateNoTargets: Story = () => (
+  <MapStory
+    options={{
+      mock: {
+        initialMarkers: [],
+        freeRoaming: true,
+      },
+    }}
+  />
+)
 
-export const ErrorState: Story = () => {
-  return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        maxHeight: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        flex: '1 1 0%',
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
-    >
-      <VueStoryWrapper
-        component={MapComponent}
-        options={{
-          mock: {
-            initialMarkers: [],
-            error:
-              'Failed to establish connection to tracking backend (/api/coords: 500 Internal Error)',
-            mode: UpdateMode.Poll,
-          },
-        }}
-        containerStyle={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
-      />
-    </div>
-  )
-}
+export const ErrorState: Story = () => (
+  <MapStory
+    options={{
+      mock: {
+        initialMarkers: [],
+        error:
+          'Failed to establish connection to tracking backend (/api/coords: 500 Internal Error)',
+        mode: UpdateMode.Poll,
+      },
+    }}
+  />
+)
 ErrorState.storyName = 'Error State (Backend Failure)'
+
+export const NoWebGL: Story = () => (
+  <MapStory options={{ mock: { initialMarkers: SAMPLE_MARKERS, noWebGL: true } }} />
+)
+NoWebGL.storyName = 'No WebGL (Old Devices)'
+
+// Tilt with right-drag (or two-finger drag) to see the 3D terrain.
+export const MountainsElevation: Story = () => (
+  <MapStory
+    options={{
+      mock: {
+        initialMarkers: MOUNTAIN_MARKERS,
+        freeRoaming: false,
+        mapStyle: 'Vector: Liberty',
+        elevation: true,
+      },
+    }}
+  />
+)
+MountainsElevation.storyName = 'Mountains (Elevation On)'
