@@ -20,6 +20,11 @@ updates:
           - "patch"
     # Keep major updates separate as they might contain breaking changes
     open-pull-requests-limit: 10
+    ignore:
+      # TypeScript 7 (native rewrite) drops the JS API that vue-tsc needs.
+      # .github/workflows/typescript-canary.yml opens an issue once this can be removed.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     versioning-strategy: "auto"
     labels:
       - "dependencies"
