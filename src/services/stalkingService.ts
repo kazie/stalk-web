@@ -3,27 +3,12 @@ import { removeMarkerByName } from './markerService'
 import { deleteLocation, hasStalkingData, publishLocation, StalkingApiError } from './stalkingApi'
 import { createLocationTracker, type LocationUpdate } from './stalkingLocation'
 import type { SendRate } from './stalkingTypes'
+import { readStorage, writeStorage } from './storage'
 
 export type { SendRate } from './stalkingTypes'
 
 const apiKeyStorageKey = 'stalk.apiKey'
 const nameStorageKey = 'stalk.name'
-
-const readStorage = (key: string): string => {
-  try {
-    return window.localStorage.getItem(key) ?? ''
-  } catch {
-    return ''
-  }
-}
-
-const writeStorage = (key: string, value: string): void => {
-  try {
-    window.localStorage.setItem(key, value)
-  } catch {
-    // Storage can be unavailable in private browsing or restricted contexts.
-  }
-}
 
 export const apiKey = ref(readStorage(apiKeyStorageKey))
 export const stalkingName = ref(readStorage(nameStorageKey))

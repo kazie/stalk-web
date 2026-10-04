@@ -137,6 +137,9 @@ vi.mock('leaflet', () => {
   }
 })
 
+// The base-layer switcher has its own tests and lazily loads MapLibre.
+vi.mock('@/composables/mapBaseLayers', () => ({ addBaseLayerSwitcher: vi.fn() }))
+
 // Mock the image imports
 vi.mock('leaflet/dist/images/marker-icon.png', () => '')
 vi.mock('leaflet/dist/images/marker-shadow.png', () => '')
@@ -246,9 +249,9 @@ describe('MapComponent', () => {
     // The map should be initialized
     const L = await import('leaflet')
     expect(L.default.map).toHaveBeenCalled()
-    expect(L.default.tileLayer).toHaveBeenCalledWith(
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      expect.any(Object),
+    const { addBaseLayerSwitcher } = await import('@/composables/mapBaseLayers')
+    expect(addBaseLayerSwitcher).toHaveBeenCalledWith(
+      vi.mocked(L.default.map).mock.results[0]!.value,
     )
 
     // Should start live updates by default

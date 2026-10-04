@@ -26,6 +26,10 @@ export default defineConfig(({ mode, command }) => {
         launchEditor: 'webstorm',
       }),
     ],
+    // MapLibre always starts its web worker as an ES module.
+    worker: {
+      format: 'es',
+    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

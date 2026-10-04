@@ -10,6 +10,7 @@ import {
   type MarkerData,
 } from '@/services/markerService'
 import { getRelativeTime } from '@/services/timeTool'
+import { addBaseLayerSwitcher } from './mapBaseLayers'
 
 type MarkerRecord = { marker: L.Marker; name: string; timestamp: string }
 
@@ -177,10 +178,7 @@ export const useLeafletMarkers = () => {
   onMounted(() => {
     if (mapContainer.value) {
       map = L.map(mapContainer.value).setView([62, 15], 4)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      }).addTo(map)
+      addBaseLayerSwitcher(map)
 
       // Markers may have arrived before Leaflet finished mounting.
       updateMapMarkers()
