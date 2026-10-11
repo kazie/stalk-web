@@ -1,6 +1,7 @@
+import { sanitizeMotion, type Motion } from './motion'
 import type { SendRate } from './stalkingTypes'
 
-export interface LocationUpdate {
+export interface LocationUpdate extends Motion {
   latitude: number
   longitude: number
 }
@@ -10,6 +11,14 @@ interface LocationTrackerOptions {
   onPosition: (position: LocationUpdate) => void
   onError: (message: string) => void
 }
+
+// Drop unusable speed/heading so the server never rejects the update because of it, and so an
+// unknown direction is never published as a real one
+export const toLocationUpdate = (coords: GeolocationCoordinates): LocationUpdate => ({
+  latitude: coords.latitude,
+  longitude: coords.longitude,
+  ...sanitizeMotion(coords),
+})
 
 const getPositionErrorMessage = (positionError: GeolocationPositionError): string => {
   switch (positionError.code) {
@@ -99,11 +108,7 @@ export const createLocationTracker = ({
       const token = ++runToken
       try {
         watchId = navigator.geolocation.watchPosition(
-          (position) =>
-            queuePosition(
-              { latitude: position.coords.latitude, longitude: position.coords.longitude },
-              token,
-            ),
+          (position) => queuePosition(toLocationUpdate(position.coords), token),
           (positionError) => {
             if (token !== runToken) return
             stop()

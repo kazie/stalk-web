@@ -1,8 +1,6 @@
-export interface LocationPayload {
-  name: string
-  latitude: number
-  longitude: number
-}
+import type { LocationUpdate } from './stalkingLocation'
+
+export type LocationPayload = LocationUpdate & { name: string }
 
 const apiEndpoint = import.meta.env.VITE_API_ENDPOINT
 

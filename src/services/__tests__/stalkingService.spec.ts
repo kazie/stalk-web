@@ -85,6 +85,27 @@ describe('stalkingService', () => {
     expect(stalkingDataExists.value).toBe(true)
   })
 
+  it('publishes speed and heading when the browser reports them', async () => {
+    startStalking()
+
+    const success = watchPosition.mock.calls[0][0]
+    success({ coords: { latitude: 59.3, longitude: 18.1, speed: 8.3, heading: 45 } })
+    await Promise.resolve()
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: JSON.stringify({
+          name: 'Alice',
+          latitude: 59.3,
+          longitude: 18.1,
+          speed: 8.3,
+          heading: 45,
+        }),
+      }),
+    )
+  })
+
   it('limits updates and sends the newest pending position', async () => {
     vi.useFakeTimers()
     setSendRate(5000)

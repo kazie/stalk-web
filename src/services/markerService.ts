@@ -1,15 +1,27 @@
 import { ref } from 'vue'
+import { sanitizeMotion, type Motion } from './motion'
 
 // Define the type for marker data
-export interface MarkerData {
+export interface MarkerData extends Motion {
   name: string
   latitude: number
   longitude: number
   timestamp: string
 }
 
+// A marker as the API sends it: speed/heading may be null, or garbage from another client
+type MarkerPayload = Omit<MarkerData, keyof Motion> & {
+  speed?: number | null
+  heading?: number | null
+}
+
+const toMarkerData = ({ speed, heading, ...marker }: MarkerPayload): MarkerData => ({
+  ...marker,
+  ...sanitizeMotion({ speed, heading }),
+})
+
 // Discriminated union for messages received over the live websocket feed
-export type WsEvent = ({ type: 'update' } & MarkerData) | { type: 'delete'; name: string }
+export type WsEvent = ({ type: 'update' } & MarkerPayload) | { type: 'delete'; name: string }
 
 // Get the API endpoint from environment variables
 const apiEndpoint = import.meta.env.VITE_API_ENDPOINT
@@ -102,7 +114,7 @@ const connectWs = (name?: string) => {
       const data = JSON.parse(evt.data as string) as WsEvent
       if (data.type === 'update') {
         const { type: _type, ...marker } = data
-        applyMarkerUpdate(marker)
+        applyMarkerUpdate(toMarkerData(marker))
       } else if (data.type === 'delete') {
         removeMarkerByName(data.name)
       }
@@ -163,8 +175,8 @@ export const fetchMarkerData = async (): Promise<void> => {
       throw new Error(`API request failed with status ${response.status}`)
     }
 
-    const data = await response.json()
-    markers.value = data
+    const data: MarkerPayload[] = await response.json()
+    markers.value = data.map(toMarkerData)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error occurred'
   } finally {
@@ -190,7 +202,7 @@ export const fetchMarkerByName = async (name: string): Promise<void> => {
 
     const data = await response.json()
     // If the API returns a single object, wrap it in an array
-    markers.value = Array.isArray(data) ? data : [data]
+    markers.value = (Array.isArray(data) ? data : [data]).map(toMarkerData)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error occurred'
     markers.value = [] // Clear markers on error
