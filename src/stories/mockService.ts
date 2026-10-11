@@ -11,6 +11,8 @@ import {
   UpdateMode,
   type MarkerData,
 } from '../services/markerService'
+import L from 'leaflet'
+import { hasMotionData, normalizeDegrees } from '../services/motion'
 
 export interface MockScenarioOptions {
   initialMarkers?: MarkerData[]
@@ -30,18 +32,26 @@ export const SAMPLE_MARKERS: MarkerData[] = [
     latitude: 59.3293,
     longitude: 18.0686,
     timestamp: new Date().toISOString(),
+    // Moving: triangle + speed label
+    speed: 8.9,
+    heading: 45,
   },
   {
     name: 'kaichan',
     latitude: 35.6762,
     longitude: 139.6503,
-    timestamp: new Date(Date.now() - 45 * 1000).toISOString(),
+    timestamp: new Date(Date.now() - 10 * 1000).toISOString(),
+    // Stationary: speed label only
+    speed: 0,
   },
   {
     name: 'Alice',
     latitude: 40.7128,
     longitude: -74.006,
     timestamp: new Date(Date.now() - 120 * 1000).toISOString(),
+    // Stale fix: motion data is ignored
+    speed: 20,
+    heading: 270,
   },
   {
     name: 'Bob',
@@ -75,12 +85,17 @@ export const CLUSTERED_MARKERS: MarkerData[] = [
     latitude: 59.325,
     longitude: 18.0708,
     timestamp: new Date(Date.now() - 15 * 1000).toISOString(),
+    speed: 1.4,
+    heading: 350,
   },
   {
     name: 'Slussen Tracker',
     latitude: 59.3197,
     longitude: 18.0715,
-    timestamp: new Date(Date.now() - 60 * 1000).toISOString(),
+    timestamp: new Date(Date.now() - 20 * 1000).toISOString(),
+    // Below the moving threshold: GPS bearing is noise, so no triangle
+    speed: 0.3,
+    heading: 120,
   },
   {
     name: 'Södermalm Rover',
@@ -95,6 +110,20 @@ export const CLUSTERED_MARKERS: MarkerData[] = [
     timestamp: new Date(Date.now() - 240 * 1000).toISOString(),
   },
 ]
+
+// Speed (m/s) and approximate heading (degrees from north) between two nearby points
+const motionBetween = (
+  from: MarkerData,
+  to: Pick<MarkerData, 'latitude' | 'longitude'>,
+  elapsedMs: number,
+): { speed: number; heading: number } => {
+  const distanceM = L.latLng(from.latitude, from.longitude).distanceTo([to.latitude, to.longitude])
+  const speed = distanceM / (elapsedMs / 1000)
+  const north = to.latitude - from.latitude
+  const east = (to.longitude - from.longitude) * Math.cos((from.latitude * Math.PI) / 180)
+  const heading = normalizeDegrees((Math.atan2(east, north) * 180) / Math.PI)
+  return { speed, heading }
+}
 
 export function setupMockEnvironment(options: MockScenarioOptions = {}): () => void {
   const originalFetch = window.fetch
@@ -185,20 +214,30 @@ export function setupMockEnvironment(options: MockScenarioOptions = {}): () => v
 
   if (options.simulateMovement) {
     let step = 0
+    const intervalMs = options.movementIntervalMs ?? 1500
     simulationTimer = setInterval(() => {
       step += 1
       markers.value = markers.value.map((m, i) => {
+        const timestamp = new Date().toISOString()
+        // Stationary targets stay put and keep reporting zero speed
+        if (m.speed === 0) return { ...m, timestamp }
+
         const offset = step * 0.1 + i
         const deltaLat = Math.sin(offset) * 0.0005
         const deltaLng = Math.cos(offset) * 0.0005
-        return {
-          ...m,
+        const next = {
           latitude: Number((m.latitude + deltaLat).toFixed(5)),
           longitude: Number((m.longitude + deltaLng).toFixed(5)),
-          timestamp: new Date().toISOString(),
+        }
+        // Targets without motion data simulate clients that don't report speed/heading
+        return {
+          ...m,
+          ...next,
+          ...(hasMotionData(m) ? motionBetween(m, next, intervalMs) : {}),
+          timestamp,
         }
       })
-    }, options.movementIntervalMs ?? 1500)
+    }, intervalMs)
   }
 
   return () => {

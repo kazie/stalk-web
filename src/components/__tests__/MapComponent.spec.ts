@@ -111,12 +111,17 @@ vi.mock('leaflet', () => {
     setLatLng: vi.fn().mockReturnThis(),
   }))
 
-  const iconMock = vi.fn(() => ({
-    iconUrl: '',
-    iconSize: [],
-    iconAnchor: [],
-    popupAnchor: [],
-  }))
+  const divIconMock = vi.fn((options) => ({ options }))
+
+  // Real DOM so the marker icon and popup can be built
+  const DomUtil = {
+    create: (tagName: string, className = '', container?: HTMLElement) => {
+      const element = document.createElement(tagName)
+      element.className = className
+      container?.appendChild(element)
+      return element
+    },
+  }
 
   return {
     default: {
@@ -125,8 +130,9 @@ vi.mock('leaflet', () => {
       layerGroup: layerGroupMock,
       latLngBounds: latLngBoundsMock,
       marker: markerMock,
-      icon: iconMock,
+      divIcon: divIconMock,
       latLng: latLngMock,
+      DomUtil,
       Marker: {
         prototype: {
           options: {},

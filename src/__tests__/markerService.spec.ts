@@ -306,6 +306,60 @@ describe('markerService', () => {
       expect(markers.value.map((m) => m.name)).toEqual(['Alice', 'Bob'])
     })
 
+    it('keeps speed/heading from update events and clears them when a later update omits them', () => {
+      startLive()
+      const ws = MockWebSocket.instances[0]
+
+      ws.emitMessage({
+        type: 'update',
+        name: 'Alice',
+        latitude: 1,
+        longitude: 2,
+        timestamp: '2023-01-01T00:00:00Z',
+        speed: 8.3,
+        heading: 45,
+      })
+      expect(markers.value).toEqual([
+        {
+          name: 'Alice',
+          latitude: 1,
+          longitude: 2,
+          timestamp: '2023-01-01T00:00:00Z',
+          speed: 8.3,
+          heading: 45,
+        },
+      ])
+
+      ws.emitMessage({
+        type: 'update',
+        name: 'Alice',
+        latitude: 1.5,
+        longitude: 2.5,
+        timestamp: '2023-01-01T00:00:30Z',
+      })
+      expect(markers.value).toHaveLength(1)
+      expect(markers.value[0]!.speed).toBeUndefined()
+      expect(markers.value[0]!.heading).toBeUndefined()
+    })
+
+    it('drops null or invalid speed/heading from other clients', () => {
+      startLive()
+      const ws = MockWebSocket.instances[0]
+
+      ws.emitMessage({
+        type: 'update',
+        name: 'Alice',
+        latitude: 1,
+        longitude: 2,
+        timestamp: '2023-01-01T00:00:00Z',
+        speed: -1,
+        heading: null,
+      })
+      expect(markers.value).toStrictEqual([
+        { name: 'Alice', latitude: 1, longitude: 2, timestamp: '2023-01-01T00:00:00Z' },
+      ])
+    })
+
     it('removes the matching marker on a delete event (all-users view)', () => {
       startLive()
       const ws = MockWebSocket.instances[0]

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import type { MarkerData } from '@/services/markerService'
+import { describeMotion } from '@/services/motion'
 import { getRelativeTime } from '@/services/timeTool'
 
 const props = defineProps<{
@@ -23,9 +24,22 @@ const relativeTime = (timestamp: string): string => {
   return getRelativeTime(timestamp)
 }
 
+const motionText = (marker: MarkerData): string => {
+  const text = describeMotion(marker, nowTick.value, ' ')
+  return text && `· ${text}`
+}
+
+// The collapsed list stays rendered (v-show), so only tick while it can be seen
+watch(
+  () => props.expanded,
+  (expanded) => {
+    if (expanded) nowTick.value = Date.now()
+  },
+)
+
 onMounted(() => {
   relativeTimeTimer = setInterval(() => {
-    nowTick.value = Date.now()
+    if (props.expanded) nowTick.value = Date.now()
   }, 1000)
 })
 
@@ -77,6 +91,7 @@ onUnmounted(() => {
               <code class="marker-coords"
                 >[ {{ marker.latitude.toFixed(5) }}, {{ marker.longitude.toFixed(5) }} ]</code
               >
+              <span class="marker-motion">{{ motionText(marker) }}</span>
             </span>
             <span class="marker-time">@ {{ relativeTime(marker.timestamp) }}</span>
           </li>
@@ -186,6 +201,15 @@ onUnmounted(() => {
   border-radius: 4px;
   font-size: 13px;
   word-break: break-all;
+}
+
+.marker-motion {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.marker-motion:empty {
+  display: none;
 }
 
 .marker-time {

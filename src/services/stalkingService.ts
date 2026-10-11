@@ -45,11 +45,7 @@ const pendingPublishes = new Set<Promise<void>>()
 
 const sendPosition = async (position: LocationUpdate, token: number): Promise<void> => {
   try {
-    await publishLocation(activeApiKey, {
-      name: activeName,
-      latitude: position.latitude,
-      longitude: position.longitude,
-    })
+    await publishLocation(activeApiKey, { name: activeName, ...position })
 
     if (token === runToken) {
       stalkingError.value = null

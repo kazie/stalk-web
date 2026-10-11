@@ -9,9 +9,25 @@ import {
   ZoomLevel,
   type MarkerData,
 } from '@/services/markerService'
+import { formatMotion, motionState, shortestRotation, type MotionState } from '@/services/motion'
 import { getRelativeTime } from '@/services/timeTool'
 
-type MarkerRecord = { marker: L.Marker; name: string; timestamp: string }
+type MarkerRecord = {
+  marker: L.Marker
+  data: MarkerData
+  // data.timestamp parsed once, as epoch ms (NaN when unparseable)
+  timestampMs: number
+  // Last state written to the DOM, so ticks only touch what changed
+  motion: MotionState | null
+  // Cumulative orbit rotation in degrees, so CSS transitions take the shortest way round
+  rotation: number
+  orbit: HTMLElement
+  speedLabel: HTMLElement
+  popupTime: HTMLElement
+  popupMotion: HTMLElement
+}
+
+type MarkerIcon = { icon: L.DivIcon; orbit: HTMLElement; speedLabel: HTMLElement }
 
 const buildAvatarUrl = (name: string): string => {
   const url = new URL('https://ui-avatars.com/api/')
@@ -24,23 +40,92 @@ const buildAvatarUrl = (name: string): string => {
   return url.toString()
 }
 
-const getIconForName = (name: string): L.Icon => {
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
+// Avatar ball with a direction arrow orbiting just outside it and a speed label on its lower rim.
+// Built as DOM nodes (not an HTML string) so names and URLs never need escaping, and so the
+// orbit/label can be mutated in place later without re-creating the icon.
+const buildMarkerIcon = (name: string): MarkerIcon => {
+  const root = L.DomUtil.create('div', 'stalk-marker')
+
+  const avatar = L.DomUtil.create('img', 'stalk-avatar', root)
+  avatar.alt = name
   if (name.toLowerCase() === 'kazie') {
-    return L.icon({
-      className: 'rounded-icon',
-      iconUrl: 'https://avatars.githubusercontent.com/u/1390887',
-      iconSize: [50, 50],
-      iconAnchor: [25, 25],
-      popupAnchor: [0, -25],
-    })
+    avatar.classList.add('rounded-icon')
+    avatar.src = 'https://avatars.githubusercontent.com/u/1390887'
+  } else {
+    avatar.src = buildAvatarUrl(name)
   }
 
-  return L.icon({
-    iconUrl: buildAvatarUrl(name),
+  const orbit = L.DomUtil.create('div', 'heading-orbit', root)
+  orbit.hidden = true
+  // SVG rather than a CSS-border triangle so the arrow can have a real outline
+  const arrow = document.createElementNS(SVG_NS, 'svg')
+  arrow.setAttribute('class', 'heading-arrow')
+  arrow.setAttribute('viewBox', '0 0 16 14')
+  const shape = document.createElementNS(SVG_NS, 'polygon')
+  shape.setAttribute('points', '8,1.5 14.5,12.5 1.5,12.5')
+  arrow.appendChild(shape)
+  orbit.appendChild(arrow)
+  const speedLabel = L.DomUtil.create('div', 'speed-label', root)
+  speedLabel.hidden = true
+
+  const icon = L.divIcon({
+    className: 'stalk-marker-icon',
+    html: root,
     iconSize: [50, 50],
     iconAnchor: [25, 25],
     popupAnchor: [0, -25],
   })
+  return { icon, orbit, speedLabel }
+}
+
+// Popup built from DOM nodes like the icon, so the name never needs escaping
+const buildPopup = (name: string) => {
+  const content = document.createElement('div')
+  L.DomUtil.create('b', '', content).textContent = name
+  content.append(' ')
+  const popupTime = L.DomUtil.create('span', '', content)
+  const popupMotion = L.DomUtil.create('div', '', content)
+  return { content, popupTime, popupMotion }
+}
+
+// Write text only when it differs; returns whether anything changed
+const setText = (element: HTMLElement, text: string): boolean => {
+  if (element.textContent === text) return false
+  element.textContent = text
+  return true
+}
+
+// motionChanged comes from applyMotion, so unchanged motion text isn't rebuilt every tick
+const updatePopup = (record: MarkerRecord, motionChanged: boolean): void => {
+  const timeChanged = setText(record.popupTime, getRelativeTime(record.timestampMs))
+  if (motionChanged) setText(record.popupMotion, formatMotion(record.motion ?? {}))
+  if (!timeChanged && !motionChanged) return
+  record.popupMotion.hidden = !record.popupMotion.textContent
+  // Re-layout an open popup whose content size may have changed; no-op while closed. Only on
+  // change, since update() on an open popup re-runs autopan and cancels pan animations.
+  record.marker.getPopup()?.update()
+}
+
+const sameMotion = (a: MotionState | null, b: MotionState): boolean =>
+  a !== null && a.speedText === b.speedText && a.heading === b.heading
+
+// Sync the triangle and speed label with the given motion state. Mutates the existing DOM
+// rather than calling setIcon so the rotation transition stays smooth and nothing flickers.
+// Returns whether anything changed.
+const applyMotion = (record: MarkerRecord, motion: MotionState): boolean => {
+  if (sameMotion(record.motion, motion)) return false
+  record.motion = motion
+  const { speedText, heading } = motion
+  if (heading !== undefined) {
+    record.rotation = shortestRotation(record.rotation, heading)
+    record.orbit.style.transform = `rotate(${record.rotation}deg)`
+  }
+  record.orbit.hidden = heading === undefined
+  record.speedLabel.textContent = speedText ?? ''
+  record.speedLabel.hidden = speedText === undefined
+  return true
 }
 
 export const useLeafletMarkers = () => {
@@ -61,30 +146,28 @@ export const useLeafletMarkers = () => {
   }
 
   const refreshRelativeTimesAndPopups = (): void => {
-    nowTick.value = Date.now()
+    const now = Date.now()
+    nowTick.value = now
     for (const item of markerInstances) {
-      const html = `<b>${item.name}</b> ${getRelativeTime(item.timestamp)}`
-      const popup = item.marker.getPopup()
-      if (popup) item.marker.setPopupContent(html)
-      else item.marker.bindPopup(html)
+      const motionChanged = applyMotion(item, motionState(item.data, now - item.timestampMs))
+      updatePopup(item, motionChanged)
     }
   }
 
+  // Fixes under a minute old (which covers MOTION_STALE_MS) tick every second
   const computeNextDelayMs = (): number => {
     const now = Date.now()
     for (const item of markerInstances) {
-      const ageMs = now - parseISO(item.timestamp).getTime()
-      if (ageMs < 60_000) return 1000
+      if (now - item.timestampMs < 60_000) return 1000
     }
     return Math.max(500, 60_000 - (now % 60_000))
   }
 
-  const scheduleAdaptiveTick = (): void => {
+  // Refresh now, then reschedule: fresh data may need a faster tick than the pending one
+  const tick = (): void => {
+    refreshRelativeTimesAndPopups()
     if (popupUpdateTimer) clearTimeout(popupUpdateTimer)
-    popupUpdateTimer = setTimeout(() => {
-      refreshRelativeTimesAndPopups()
-      scheduleAdaptiveTick()
-    }, computeNextDelayMs())
+    popupUpdateTimer = setTimeout(tick, computeNextDelayMs())
   }
 
   const clearMarkers = (): void => {
@@ -104,7 +187,7 @@ export const useLeafletMarkers = () => {
         freeRoamingMode.value = true
         autoEnforcedFreeRoaming.value = true
       }
-      refreshRelativeTimesAndPopups()
+      tick()
       return
     }
 
@@ -124,29 +207,31 @@ export const useLeafletMarkers = () => {
       const existing = markerByName.get(markerData.name)
       if (existing) {
         existing.marker.setLatLng(position)
-        existing.timestamp = markerData.timestamp
-
-        const popup = existing.marker.getPopup()
-        // @ts-ignore Leaflet version compatibility guard
-        const isOpen =
-          typeof (existing.marker as any).isPopupOpen === 'function'
-            ? (existing.marker as any).isPopupOpen()
-            : !!(popup as any)?.isOpen?.()
-        if (isOpen) {
-          const html = `<b>${markerData.name}</b> ${getRelativeTime(markerData.timestamp)}`
-          if (popup) existing.marker.setPopupContent(html)
-          else existing.marker.bindPopup(html)
+        // Unchanged markers keep their object identity, so only parse what actually changed
+        if (existing.data !== markerData) {
+          existing.data = markerData
+          existing.timestampMs = parseISO(markerData.timestamp).getTime()
         }
+        // Motion indicators and popup are synced by refreshRelativeTimesAndPopups() below
       } else {
-        const marker = L.marker(position, { icon: getIconForName(markerData.name) }).addTo(
-          markersLayer!,
-        )
-        marker.bindPopup(`<b>${markerData.name}</b> ${getRelativeTime(markerData.timestamp)}`)
-        markerByName.set(markerData.name, {
-          marker,
-          name: markerData.name,
-          timestamp: markerData.timestamp,
-        })
+        const { icon, orbit, speedLabel } = buildMarkerIcon(markerData.name)
+        const { content, popupTime, popupMotion } = buildPopup(markerData.name)
+        const record: MarkerRecord = {
+          marker: L.marker(position, { icon }).bindPopup(content),
+          data: markerData,
+          timestampMs: parseISO(markerData.timestamp).getTime(),
+          motion: null,
+          rotation: 0,
+          orbit,
+          speedLabel,
+          popupTime,
+          popupMotion,
+        }
+        // Set the initial state before the icon hits the DOM so it doesn't animate in from 0deg
+        applyMotion(record, motionState(markerData, Date.now() - record.timestampMs))
+        updatePopup(record, true)
+        record.marker.addTo(markersLayer!)
+        markerByName.set(markerData.name, record)
       }
     }
 
@@ -169,7 +254,7 @@ export const useLeafletMarkers = () => {
         map.fitBounds(bounds, { padding: [50, 50], animate: true })
       }
     }
-    refreshRelativeTimesAndPopups()
+    tick()
   }
 
   watch(markers, updateMapMarkers, { deep: true })
@@ -195,7 +280,7 @@ export const useLeafletMarkers = () => {
       resizeObserver = new ResizeObserver(() => map?.invalidateSize())
       resizeObserver.observe(mapContainer.value)
     }
-    scheduleAdaptiveTick()
+    tick()
   })
 
   onUnmounted(() => {
