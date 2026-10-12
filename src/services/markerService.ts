@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { toApiError } from './apiError'
 import { sanitizeMotion, type Motion } from './motion'
 
 // Define the type for marker data
@@ -171,9 +172,7 @@ export const fetchMarkerData = async (): Promise<void> => {
   try {
     const response = await fetch(apiEndpoint)
 
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`)
-    }
+    if (!response.ok) throw await toApiError(response)
 
     const data: MarkerPayload[] = await response.json()
     markers.value = data.map(toMarkerData)
@@ -191,13 +190,13 @@ export const fetchMarkerByName = async (name: string): Promise<void> => {
   currentName.value = name
 
   try {
-    const response = await fetch(`${apiEndpoint}/${name}`)
+    const response = await fetch(`${apiEndpoint}/${encodeURIComponent(name)}`)
 
     if (!response.ok) {
       if (response.status === 404) {
         throw new Error(`No user named "${name}" known...`)
       }
-      throw new Error(`API request failed with status ${response.status}`)
+      throw await toApiError(response)
     }
 
     const data = await response.json()

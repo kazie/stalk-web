@@ -81,6 +81,24 @@ describe('markerService', () => {
     expect(error.value).toBe('API request failed with status 404')
   })
 
+  it('shows the problem detail from the API', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          type: 'about:blank',
+          title: 'Internal Server Error',
+          status: 500,
+          detail: 'The server failed to handle the request; it has been logged',
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/problem+json' } },
+      ),
+    )
+
+    await fetchMarkerData()
+
+    expect(error.value).toBe('The server failed to handle the request; it has been logged')
+  })
+
   it('handles network errors', async () => {
     // Mock a network error
     global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'))

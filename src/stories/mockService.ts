@@ -147,24 +147,24 @@ export function setupMockEnvironment(options: MockScenarioOptions = {}): () => v
   if (options.zoomLevel) currentZoomLevel.value = options.zoomLevel
   if (options.mode) updateMode.value = options.mode
 
-  // Mock Fetch
+  // Mock Fetch. Errors use the API's RFC 9457 problem+json format
+  const problem = (status: number, title: string, detail: string, instance: string) =>
+    new Response(JSON.stringify({ type: 'about:blank', title, status, detail, instance }), {
+      status,
+      headers: { 'Content-Type': 'application/problem+json' },
+    })
+
   window.fetch = async (input: RequestInfo | URL) => {
     const urlStr = typeof input === 'string' ? input : input.toString()
     if (options.error) {
-      return new Response(JSON.stringify({ error: options.error }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      return problem(500, 'Internal Server Error', options.error, '/api/coords')
     }
     if (urlStr.includes('/api/coords/')) {
       const parts = urlStr.split('/api/coords/')
-      const name = parts[1]
-      const found = markers.value.find((m) => m.name.toLowerCase() === name?.toLowerCase())
+      const name = decodeURIComponent(parts[1] ?? '')
+      const found = markers.value.find((m) => m.name.toLowerCase() === name.toLowerCase())
       if (!found) {
-        return new Response(JSON.stringify({ error: 'Not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        })
+        return problem(404, 'Not Found', `No user named '${name}'`, `/api/coords/${parts[1]}`)
       }
       return new Response(JSON.stringify(found), {
         status: 200,
