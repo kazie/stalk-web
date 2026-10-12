@@ -22,6 +22,12 @@ const clearWatch = vi.fn()
 
 const response = (ok = true, status = 200) => ({ ok, status })
 
+const problemResponse = (status: number, problem: object, headers: Record<string, string> = {}) =>
+  new Response(JSON.stringify({ type: 'about:blank', status, ...problem }), {
+    status,
+    headers: { 'Content-Type': 'application/problem+json', ...headers },
+  })
+
 const deferredResponse = () => {
   let resolve!: (response: Response) => void
   let reject!: (reason: Error) => void
@@ -140,16 +146,65 @@ describe('stalkingService', () => {
     expect(clearWatch).toHaveBeenCalledWith(42)
   })
 
-  it('keeps stalking active when a publish fails', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(response(false, 401) as Response)
+  const publishOnce = async () => {
     startStalking()
     const success = watchPosition.mock.calls[0][0]
     success({ coords: { latitude: 1, longitude: 2 } })
-    await Promise.resolve()
-    await Promise.resolve()
+    await flushPromises()
+  }
+
+  it('keeps stalking active when a publish fails', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response(false, 503) as Response)
+    await publishOnce()
 
     expect(isStalking.value).toBe(true)
-    expect(stalkingError.value).toBe('API request failed with status 401')
+    expect(stalkingError.value).toBe('API request failed with status 503')
+  })
+
+  it('shows the server detail when a publish fails', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      problemResponse(500, {
+        title: 'Internal Server Error',
+        detail: 'The server failed to handle the request; it has been logged',
+      }),
+    )
+    await publishOnce()
+
+    expect(isStalking.value).toBe(true)
+    expect(stalkingError.value).toBe('The server failed to handle the request; it has been logged')
+  })
+
+  it('lists every invalid field when the server rejects a position', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      problemResponse(400, {
+        title: 'Bad Request',
+        detail: '2 fields are invalid',
+        errors: [
+          { pointer: '#/latitude', detail: 'must be between -90 and 90' },
+          { pointer: '#/heading', detail: 'must be between 0 and 360' },
+        ],
+      }),
+    )
+    await publishOnce()
+
+    expect(stalkingError.value).toBe(
+      'Invalid location: latitude must be between -90 and 90; heading must be between 0 and 360',
+    )
+  })
+
+  it('stops stalking when the API key is rejected', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      problemResponse(
+        401,
+        { title: 'Unauthorized', detail: 'Invalid bearer token' },
+        { 'WWW-Authenticate': 'Bearer error="invalid_token"' },
+      ),
+    )
+    await publishOnce()
+
+    expect(isStalking.value).toBe(false)
+    expect(clearWatch).toHaveBeenCalledWith(42)
+    expect(stalkingError.value).toBe('Invalid API key.')
   })
 
   it('stops when browser location access fails', () => {

@@ -53,6 +53,8 @@ const sendPosition = async (position: LocationUpdate, token: number): Promise<vo
     }
   } catch (error) {
     if (token === runToken) {
+      // A rejected key fails every later fix too, so stop instead of retrying it
+      if (error instanceof StalkingApiError && error.status === 401) stopStalking()
       stalkingError.value = error instanceof Error ? error.message : 'Unable to send location.'
     }
   }
