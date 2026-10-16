@@ -2,6 +2,22 @@
 
 This repository contains the Stalk Web application. The application is built using Vue.js and TypeScript.
 
+## Branches
+
+- `master`: the current app, built on a WebGL map. Browsers without WebGL get a notice and, if
+  `VITE_FALLBACK_URL` is set, a link to the classic app.
+- `legacy`: the classic Leaflet app. Maintenance only: dependency updates and API compatibility fixes.
+
+Each branch is built and deployed on its own; see [docs/deployment.md](docs/deployment.md).
+
+Changes to the shared API layer (`src/services/stalkingApi.ts`, `stalkingService.ts`,
+`stalkingTypes.ts`, …) land on `master` first and are then cherry-picked to `legacy`:
+
+```bash
+git switch legacy
+git cherry-pick -x <commit>
+```
+
 ## CI/CD
 
 This project uses GitHub Actions for continuous integration and Dependabot for dependency management.
@@ -10,13 +26,13 @@ This project uses GitHub Actions for continuous integration and Dependabot for d
 
 Two workflows are configured:
 
-1. **CI**: Runs on pushes to main and pull requests. It runs tests and uploads coverage reports to Codecov.
+1. **CI**: Runs on pushes and pull requests to `master` and `legacy`. It runs tests and uploads coverage reports to Codecov.
 
 ### Dependabot
 
 Dependabot is configured to:
 
-- Check for pnpm dependency updates weekly
+- Check for pnpm dependency updates weekly, for both `master` and `legacy`
 - Group minor and patch updates for production dependencies
 - Group minor and patch updates for development dependencies
 - Keep major updates separate (as they might contain breaking changes)

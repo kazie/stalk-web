@@ -37,3 +37,40 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
+
+  # Same updates for the maintenance-only `legacy` branch (classic Leaflet app).
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "legacy"
+    schedule:
+      interval: "weekly"
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+    versioning-strategy: "auto"
+    labels:
+      - "dependencies"
+      - "pnpm"
+      - "legacy"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "legacy"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "legacy"
