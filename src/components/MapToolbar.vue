@@ -18,6 +18,8 @@ defineProps<{
   currentName: string | null
 }>()
 
+const modernUrl = import.meta.env.VITE_MODERN_URL?.trim() || undefined
+
 const selectedZoom = ref<number>(currentZoomLevel.value)
 const isZoomInteracting = ref(false)
 const zoomSelectEl = ref<HTMLSelectElement | null>(null)
@@ -100,6 +102,9 @@ const onZoomChange = (): void => {
       >
         {{ freeRoamingMode ? 'ON' : 'OFF' }}
       </button>
+      <a v-if="modernUrl" class="modern-link" :href="modernUrl" title="Try the new version">
+        New version ↗
+      </a>
     </div>
   </div>
 </template>
@@ -158,6 +163,21 @@ h2 {
   background-color: #42b983;
   color: white;
   border-color: #42b983;
+}
+
+.modern-link {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #42b983;
+  color: #42b983;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.modern-link:hover {
+  background-color: #42b983;
+  color: white;
 }
 
 .free-roaming-toggle:disabled {
