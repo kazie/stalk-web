@@ -17,14 +17,16 @@ import {
 import MapToolbar from './MapToolbar.vue'
 import MarkerList from './MarkerList.vue'
 import StalkingPanel from './StalkingPanel.vue'
-import { useLeafletMarkers } from '@/composables/useLeafletMarkers'
+import { useMapMarkers } from '@/composables/useMapMarkers'
+import { fallbackUrl } from '@/services/webglSupport'
 
 const props = defineProps<{
   name?: string
 }>()
 
 const router = useRouter()
-const { mapContainer } = useLeafletMarkers()
+const { mapContainer, mapError } = useMapMarkers()
+const classicUrl = fallbackUrl()
 const isMenuExpanded = ref(false)
 
 const startMarkerUpdates = (name?: string): void => {
@@ -65,6 +67,12 @@ onUnmounted(() => {
     <div class="map-content">
       <MapToolbar :current-name="currentName" />
       <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-if="mapError" class="error-message">
+        {{ mapError }}
+        <a v-if="classicUrl" class="fallback-link" :href="classicUrl">
+          Switch to the classic version
+        </a>
+      </div>
       <div ref="mapContainer" class="map"></div>
       <MarkerList
         :markers="markers"
@@ -116,5 +124,12 @@ onUnmounted(() => {
   border-radius: 4px;
   margin-bottom: 16px;
   font-size: 14px;
+}
+
+.error-message .fallback-link {
+  margin-left: 4px;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
 }
 </style>

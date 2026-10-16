@@ -11,8 +11,8 @@ import {
   UpdateMode,
   type MarkerData,
 } from '../services/markerService'
-import L from 'leaflet'
 import { hasMotionData, normalizeDegrees } from '../services/motion'
+import { elevationStorageKey, mapStyleStorageKey } from '../composables/mapStyles'
 
 export interface MockScenarioOptions {
   initialMarkers?: MarkerData[]
@@ -24,6 +24,12 @@ export interface MockScenarioOptions {
   freeRoaming?: boolean
   zoomLevel?: ZoomLevel
   mode?: UpdateMode
+  /** Map style to start with, e.g. 'Vector: Liberty'. */
+  mapStyle?: string
+  /** Start with hill shading and 3D terrain on. */
+  elevation?: boolean
+  /** Act like a browser without WebGL, as on old devices. */
+  noWebGL?: boolean
 }
 
 export const SAMPLE_MARKERS: MarkerData[] = [
@@ -111,13 +117,29 @@ export const CLUSTERED_MARKERS: MarkerData[] = [
   },
 ]
 
+const EARTH_RADIUS_M = 6_371_000
+
+// Great-circle (haversine) distance in metres
+const distanceMeters = (
+  a: Pick<MarkerData, 'latitude' | 'longitude'>,
+  b: Pick<MarkerData, 'latitude' | 'longitude'>,
+): number => {
+  const rad = Math.PI / 180
+  const dLat = (b.latitude - a.latitude) * rad
+  const dLon = (b.longitude - a.longitude) * rad
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(dLon / 2) ** 2
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(h))
+}
+
 // Speed (m/s) and approximate heading (degrees from north) between two nearby points
 const motionBetween = (
   from: MarkerData,
   to: Pick<MarkerData, 'latitude' | 'longitude'>,
   elapsedMs: number,
 ): { speed: number; heading: number } => {
-  const distanceM = L.latLng(from.latitude, from.longitude).distanceTo([to.latitude, to.longitude])
+  const distanceM = distanceMeters(from, to)
   const speed = distanceM / (elapsedMs / 1000)
   const north = to.latitude - from.latitude
   const east = (to.longitude - from.longitude) * Math.cos((from.latitude * Math.PI) / 180)
@@ -125,9 +147,59 @@ const motionBetween = (
   return { speed, heading }
 }
 
+// Around Zermatt and the Matterhorn, to show off the elevation layers.
+export const MOUNTAIN_MARKERS: MarkerData[] = [
+  {
+    name: 'kazie',
+    latitude: 45.9763,
+    longitude: 7.6586,
+    timestamp: new Date().toISOString(),
+  },
+  {
+    name: 'Hiker',
+    latitude: 46.0207,
+    longitude: 7.7491,
+    timestamp: new Date(Date.now() - 600 * 1000).toISOString(),
+  },
+  {
+    name: 'Skier',
+    latitude: 45.9387,
+    longitude: 7.7297,
+    timestamp: new Date(Date.now() - 90 * 1000).toISOString(),
+  },
+]
+
 export function setupMockEnvironment(options: MockScenarioOptions = {}): () => void {
   const originalFetch = window.fetch
   const originalWebSocket = window.WebSocket
+  const originalGetContext = HTMLCanvasElement.prototype.getContext
+  const originalGetItem = Storage.prototype.getItem
+  const originalSetItem = Storage.prototype.setItem
+
+  // The story's map settings live in memory, so they never leak into other stories or the real app.
+  const storySettings = new Map<string, string>()
+  if (options.mapStyle) storySettings.set(mapStyleStorageKey, options.mapStyle)
+  if (options.elevation !== undefined)
+    storySettings.set(elevationStorageKey, String(options.elevation))
+  if (storySettings.size) {
+    Storage.prototype.getItem = function (this: Storage, key: string) {
+      return storySettings.get(key) ?? originalGetItem.call(this, key)
+    }
+    Storage.prototype.setItem = function (this: Storage, key: string, value: string) {
+      if (storySettings.has(key)) storySettings.set(key, value)
+      else originalSetItem.call(this, key, value)
+    }
+  }
+  if (options.noWebGL) {
+    HTMLCanvasElement.prototype.getContext = function (
+      this: HTMLCanvasElement,
+      type: string,
+      ...rest: unknown[]
+    ) {
+      if (type === 'webgl2' || type === 'webgl') return null
+      return (originalGetContext as (...args: unknown[]) => unknown).call(this, type, ...rest)
+    } as typeof originalGetContext
+  }
 
   const initial = options.initialMarkers ?? SAMPLE_MARKERS
   let currentMarkers = JSON.parse(JSON.stringify(initial)) as MarkerData[]
@@ -154,8 +226,13 @@ export function setupMockEnvironment(options: MockScenarioOptions = {}): () => v
       headers: { 'Content-Type': 'application/problem+json' },
     })
 
-  window.fetch = async (input: RequestInfo | URL) => {
-    const urlStr = typeof input === 'string' ? input : input.toString()
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const urlStr = input instanceof Request ? input.url : input.toString()
+    // Only the app's own API is mocked; everything else, like map styles and tiles, is real.
+    const url = new URL(urlStr, window.location.href)
+    if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/')) {
+      return originalFetch(input, init)
+    }
     if (options.error) {
       return problem(500, 'Internal Server Error', options.error, '/api/coords')
     }
@@ -247,5 +324,8 @@ export function setupMockEnvironment(options: MockScenarioOptions = {}): () => v
     }
     window.fetch = originalFetch
     window.WebSocket = originalWebSocket
+    HTMLCanvasElement.prototype.getContext = originalGetContext
+    Storage.prototype.getItem = originalGetItem
+    Storage.prototype.setItem = originalSetItem
   }
 }

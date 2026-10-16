@@ -1,7 +1,6 @@
 import React from 'react'
 import type { GlobalProvider } from '@ladle/react'
 import '../src/assets/main.css'
-import 'leaflet/dist/leaflet.css'
 import './ladle-override.css'
 
 export const Provider: GlobalProvider = ({ children }) => {

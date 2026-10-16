@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import MapComponent from '../MapComponent.vue'
 import type { MarkerData } from '@/services/markerService.ts'
@@ -21,10 +21,10 @@ vi.mock('@/services/markerService', () => {
 
   // Define enums and constants for the mock
   const ZoomLevel = {
-    Close: 18,
-    Medium: 15,
-    Far: 10,
-    VeryFar: 6,
+    Close: 17,
+    Medium: 14,
+    Far: 9,
+    VeryFar: 5,
   }
   const UpdateMode = {
     Poll: 'poll',
@@ -74,81 +74,59 @@ vi.mock('@/services/markerService', () => {
   }
 })
 
-// Mock Leaflet
-vi.mock('leaflet', () => {
-  const latLngMock = vi.fn((latitude, longitude) => ({
-    lat: latitude,
-    lng: longitude,
-  }))
-
-  const mapMock = vi.fn(() => ({
-    setView: vi.fn().mockReturnThis(),
-    fitBounds: vi.fn().mockReturnThis(),
-    invalidateSize: vi.fn().mockReturnThis(),
-    remove: vi.fn(),
-  }))
-
-  const tileLayerMock = vi.fn(() => ({
-    addTo: vi.fn(),
-  }))
-
-  const layerGroupMock = vi.fn(() => ({
-    addTo: vi.fn().mockReturnThis(),
-    removeLayer: vi.fn(),
-    clearLayers: vi.fn(),
-  }))
-
-  const latLngBoundsMock = vi.fn(() => ({
-    extend: vi.fn(),
-    isValid: vi.fn().mockReturnValue(true),
-  }))
-
-  const markerMock = vi.fn(() => ({
-    addTo: vi.fn().mockReturnThis(),
-    bindPopup: vi.fn().mockReturnThis(),
-    getPopup: vi.fn().mockReturnValue(null),
-    setPopupContent: vi.fn().mockReturnThis(),
-    setLatLng: vi.fn().mockReturnThis(),
-  }))
-
-  const divIconMock = vi.fn((options) => ({ options }))
-
-  // Real DOM so the marker icon and popup can be built
-  const DomUtil = {
-    create: (tagName: string, className = '', container?: HTMLElement) => {
-      const element = document.createElement(tagName)
-      element.className = className
-      container?.appendChild(element)
-      return element
-    },
+// Mock MapLibre, which needs WebGL
+vi.mock('maplibre-gl', () => {
+  // Every method returns its instance, like MapLibre's chainable API.
+  const chainable = <T extends Record<string, Mock>>(methods: T): T => {
+    for (const fn of Object.values(methods)) fn.mockReturnValue(methods)
+    return methods
   }
+
+  const Map = vi.fn(function () {
+    const map = chainable({
+      addControl: vi.fn(),
+      on: vi.fn(),
+      once: vi.fn(),
+      easeTo: vi.fn(),
+      fitBounds: vi.fn(),
+      getBearing: vi.fn(),
+      remove: vi.fn(),
+    })
+    map.getBearing.mockReturnValue(0)
+    return map
+  })
+  const Popup = vi.fn(function () {
+    return chainable({ setDOMContent: vi.fn() })
+  })
+  const Marker = vi.fn(function () {
+    return chainable({ setLngLat: vi.fn(), setPopup: vi.fn(), addTo: vi.fn(), remove: vi.fn() })
+  })
+  const LngLatBounds = vi.fn(function () {
+    return chainable({ extend: vi.fn() })
+  })
+  class GPUInitializationError extends Error {}
 
   return {
-    default: {
-      map: mapMock,
-      tileLayer: tileLayerMock,
-      layerGroup: layerGroupMock,
-      latLngBounds: latLngBoundsMock,
-      marker: markerMock,
-      divIcon: divIconMock,
-      latLng: latLngMock,
-      DomUtil,
-      Marker: {
-        prototype: {
-          options: {},
-        },
-      },
-    },
-    latLng: latLngMock,
+    Map,
+    Marker,
+    Popup,
+    LngLatBounds,
+    NavigationControl: vi.fn(),
+    GPUInitializationError,
+    setWorkerUrl: vi.fn(),
   }
 })
+vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url', () => ({ default: 'worker.js' }))
 
-// Mock the image imports
-vi.mock('leaflet/dist/images/marker-icon.png', () => '')
-vi.mock('leaflet/dist/images/marker-shadow.png', () => '')
+// The style switcher has its own tests.
+vi.mock('@/composables/mapStyles', () => ({ addStyleSwitcher: vi.fn() }))
 
 describe('MapComponent', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Tests without markers force free roaming on.
+    const markerService = await import('@/services/markerService')
+    markerService.freeRoamingMode.value = false
+
     // Create a div to mount the map
     const mapDiv = document.createElement('div')
     mapDiv.id = 'map-container'
@@ -159,6 +137,7 @@ describe('MapComponent', () => {
     // Clean up
     document.body.innerHTML = ''
     vi.clearAllMocks()
+    vi.unstubAllEnvs()
   })
 
   it('renders properly', async () => {
@@ -250,20 +229,51 @@ describe('MapComponent', () => {
     await flushPromises()
 
     // The map should be initialized
-    const L = await import('leaflet')
-    expect(L.default.map).toHaveBeenCalled()
-    expect(L.default.tileLayer).toHaveBeenCalledWith(
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      expect.any(Object),
-    )
+    const maplibre = await import('maplibre-gl')
+    expect(maplibre.Map).toHaveBeenCalled()
+    const map = vi.mocked(maplibre.Map).mock.results[0]!.value
+    const { addStyleSwitcher } = await import('@/composables/mapStyles')
+    expect(addStyleSwitcher).toHaveBeenCalledWith(map)
 
     // Should start live updates by default
     const markerService = await import('@/services/markerService')
     expect(markerService.startLive).toHaveBeenCalled()
 
-    // Should create and add markers to the map layer
-    expect(L.default.layerGroup).toHaveBeenCalled()
-    expect(L.default.marker).toHaveBeenCalled()
+    // Should add a marker with a popup per person and fit the map to them
+    expect(maplibre.Marker).toHaveBeenCalledTimes(2)
+    const marker = vi.mocked(maplibre.Marker).mock.results[0]!.value
+    expect(marker.setLngLat).toHaveBeenCalledWith([-74.006, 40.7128])
+    expect(marker.addTo).toHaveBeenCalledWith(map)
+    const popup = vi.mocked(maplibre.Popup).mock.results[0]!.value
+    expect(marker.setPopup).toHaveBeenCalledWith(popup)
+    const popupContent = popup.setDOMContent.mock.calls[0][0] as HTMLElement
+    expect(popupContent.textContent).toMatch(/^Test Marker 1 \S/)
+    map.getBearing.mockReturnValue(30)
+    map.fitBounds.mockClear()
+    // Fit again as when the map finishes loading, after the user has rotated it.
+    map.once.mock.calls[0]![1]()
+    expect(map.fitBounds).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ bearing: 30, maxZoom: 17 }),
+    )
+  })
+
+  it('shows a message instead of the map when WebGL is unavailable', async () => {
+    vi.stubEnv('VITE_FALLBACK_URL', 'https://old.example.com')
+    const maplibre = await import('maplibre-gl')
+    vi.mocked(maplibre.Map).mockImplementationOnce(function () {
+      throw new maplibre.GPUInitializationError({}, null)
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const wrapper = mount(MapComponent)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain("doesn't support WebGL 2")
+    expect(wrapper.find('a.fallback-link').attributes('href')).toBe('https://old.example.com')
+    expect(maplibre.Marker).not.toHaveBeenCalled()
+    // The people list still works.
+    expect(wrapper.findAll('.markers-list li')).toHaveLength(2)
   })
 
   it('cleans up the map and stops fetching when unmounted', async () => {
@@ -274,8 +284,8 @@ describe('MapComponent', () => {
     wrapper.unmount()
 
     // The map should be removed
-    const L = await import('leaflet')
-    const mapInstance = vi.mocked(L.default.map).mock.results[0]!.value as any
+    const maplibre = await import('maplibre-gl')
+    const mapInstance = vi.mocked(maplibre.Map).mock.results[0]!.value
     expect(mapInstance.remove).toHaveBeenCalled()
 
     // Should stop updates
