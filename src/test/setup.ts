@@ -1,3 +1,10 @@
+import { afterEach } from 'vitest'
+import { enableAutoUnmount } from '@vue/test-utils'
+
+// Unmount every wrapper after each test so component timers are cleared
+// before the jsdom environment is torn down.
+enableAutoUnmount(afterEach)
+
 class ResizeObserverMock {
   observe() {}
   unobserve() {}
