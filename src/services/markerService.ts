@@ -33,14 +33,22 @@ export const isLoading = ref(false)
 export const error = ref<string | null>(null)
 export const currentName = ref<string | null>(null)
 
-// Define zoom level options
+// Define zoom level options (MapLibre zoom levels)
 export enum ZoomLevel {
-  Close = 18,
-  Medium = 15,
-  Far = 10,
-  VeryFar = 6,
-  CountryFar = 4,
+  Close = 17,
+  Medium = 14,
+  Far = 9,
+  VeryFar = 5,
+  CountryFar = 3,
 }
+
+// The zoom levels the toolbar offers. CountryFar is only the map's starting view.
+export const zoomLevelOptions: readonly { level: ZoomLevel; label: string }[] = [
+  { level: ZoomLevel.Close, label: 'Close' },
+  { level: ZoomLevel.Medium, label: 'Medium' },
+  { level: ZoomLevel.Far, label: 'Far' },
+  { level: ZoomLevel.VeryFar, label: 'Very Far' },
+]
 
 // Create reactive state for the free roaming mode, update frequency, and zoom level
 export const freeRoamingMode = ref(false)

@@ -1,4 +1,4 @@
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import {
   apiKey,
   checkStalkingData,
@@ -17,7 +17,6 @@ import {
 } from '@/services/stalkingService'
 
 export const useStalkingPanel = () => {
-  const expanded = ref(false)
   let nameCheckTimer: ReturnType<typeof setTimeout> | null = null
 
   const canDelete = computed(
@@ -54,16 +53,12 @@ export const useStalkingPanel = () => {
   return {
     apiKey,
     canDelete,
-    expanded,
     isCheckingStalkingData,
     isDeleting,
     isStalking,
     sendRate,
     stalkingError,
     stalkingName,
-    togglePanel: () => {
-      expanded.value = !expanded.value
-    },
     toggleStalking: () => {
       if (isStalking.value) stopStalking()
       else startStalking()

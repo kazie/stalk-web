@@ -75,10 +75,10 @@ select {
   width: 100%;
   margin-top: 4px;
   padding: 7px 8px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-hover);
   border-radius: 4px;
   background: var(--color-background-soft);
-  color: var(--color-text);
+  color: var(--color-heading);
   font: inherit;
 }
 
@@ -91,31 +91,25 @@ select {
 .stalking-panel-actions button {
   flex: 1;
   padding: 8px 10px;
-  border: 1px solid var(--color-border);
+  border: 1px solid transparent;
   border-radius: 4px;
+  color: white;
+  font: inherit;
   cursor: pointer;
 }
 
 .start-stalking-button {
-  background: #42b983;
-  border-color: #42b983 !important;
-  color: white;
+  background: var(--color-accent);
 }
 
-.start-stalking-button.active {
-  background: #c62828;
-  border-color: #c62828 !important;
-}
-
+.start-stalking-button.active,
 .delete-stalking-button {
-  background: #c62828;
-  border-color: #c62828 !important;
-  color: white;
+  background: var(--color-danger);
 }
 
 .delete-stalking-button:disabled {
   background: var(--color-background-soft);
-  border-color: var(--color-border) !important;
+  border-color: var(--color-border);
   color: var(--color-text);
 }
 
@@ -131,10 +125,24 @@ select {
 }
 
 .stalking-status {
-  color: #287a55;
+  color: var(--color-success-text);
 }
 
 .stalking-error {
-  color: #c62828;
+  color: var(--color-danger-text);
+}
+
+@container app (max-width: 768px) {
+  /* 16px stops iOS zooming in on focus; 44px is a comfortable touch target */
+  input,
+  select,
+  .stalking-panel-actions button {
+    min-height: var(--touch-target);
+    font-size: 16px;
+  }
+
+  label {
+    font-size: 14px;
+  }
 }
 </style>

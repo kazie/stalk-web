@@ -29,7 +29,7 @@ defineProps<{
 .fallback-link {
   padding: 8px 16px;
   border-radius: 4px;
-  background-color: #42b983;
+  background-color: var(--color-accent);
   color: white;
   text-decoration: none;
 }

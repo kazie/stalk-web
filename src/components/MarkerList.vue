@@ -50,50 +50,49 @@ onUnmounted(() => {
 
 <template>
   <div class="markers-info" :class="{ collapsed: !props.expanded }">
-    <div
-      class="markers-header"
-      role="button"
-      tabindex="0"
-      :aria-expanded="props.expanded"
-      @click="emit('toggle')"
-      @keydown.enter.self="emit('toggle')"
-      @keydown.space.self.prevent="emit('toggle')"
-    >
+    <div class="markers-header">
       <h3>
-        Current Markers ({{ props.markers.length }})
-        <span v-if="props.currentName" class="view-all" @click.stop="emit('navigate', null)">
-          View All
-        </span>
+        <button
+          class="markers-toggle"
+          type="button"
+          aria-controls="markers-body"
+          :aria-expanded="props.expanded"
+          :class="{ open: props.expanded }"
+          @click="emit('toggle')"
+        >
+          Current Markers ({{ props.markers.length }})
+        </button>
       </h3>
       <button
-        class="menu-toggle-btn"
+        v-if="props.currentName"
+        class="view-all"
         type="button"
-        :aria-label="props.expanded ? 'Collapse markers menu' : 'Expand markers menu'"
-        @click.stop="emit('toggle')"
+        @click="emit('navigate', null)"
       >
-        <span class="chevron" :class="{ open: props.expanded }">▾</span>
+        View All
       </button>
     </div>
-    <div v-show="props.expanded" class="markers-body">
+    <div v-show="props.expanded" id="markers-body" class="markers-body">
       <div v-if="props.markers.length === 0 && !props.isLoading" class="no-markers">
         No markers available
       </div>
       <div v-else class="markers-list">
         <ul>
           <li v-for="marker in props.markers" :key="marker.name" class="marker-item">
-            <span class="marker-item-main">
-              <strong
-                class="marker-name"
-                :class="{ current: marker.name === props.currentName }"
-                @click="emit('navigate', marker.name)"
-                >{{ marker.name }}</strong
-              >:
-              <code class="marker-coords"
-                >[ {{ marker.latitude.toFixed(5) }}, {{ marker.longitude.toFixed(5) }} ]</code
-              >
+            <button
+              class="marker-row"
+              type="button"
+              :class="{ current: marker.name === props.currentName }"
+              :aria-current="marker.name === props.currentName ? 'true' : undefined"
+              @click="emit('navigate', marker.name)"
+            >
+              <strong class="marker-name">{{ marker.name }}</strong>
               <span class="marker-motion">{{ motionText(marker) }}</span>
-            </span>
-            <span class="marker-time">@ {{ relativeTime(marker.timestamp) }}</span>
+              <code class="marker-coords"
+                >{{ marker.latitude.toFixed(5) }}, {{ marker.longitude.toFixed(5) }}</code
+              >
+              <span class="marker-time">{{ relativeTime(marker.timestamp) }}</span>
+            </button>
           </li>
         </ul>
       </div>
@@ -103,65 +102,89 @@ onUnmounted(() => {
 
 <style scoped>
 .markers-info {
-  margin-top: 16px;
+  margin-top: 12px;
   flex-shrink: 0;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background-color: var(--color-background);
   display: flex;
   flex-direction: column;
-  transition: max-height 0.3s ease;
   max-height: 40vh;
+  max-height: 40dvh;
 }
 
 .markers-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  cursor: pointer;
-  user-select: none;
-  padding: 8px 12px;
-  border-radius: 6px;
+  gap: 8px;
+  padding-right: 8px;
   flex-shrink: 0;
 }
 
-.markers-header:hover {
-  background-color: var(--color-background-soft);
+.markers-header h3 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
 }
 
-.markers-header h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+/* The whole header row toggles the list */
+.markers-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.menu-toggle-btn {
-  background: transparent;
-  border: none;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--color-heading);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
   cursor: pointer;
-  padding: 4px 8px;
-  font-size: 14px;
-  color: var(--color-text);
 }
 
-.chevron {
+/* Drawn by CSS (with empty alt text) so the heading text stays just the title */
+.markers-toggle::before {
+  content: '▸';
+  content: '▸' / '';
   display: inline-block;
   transition: transform 0.25s ease;
-  font-size: 16px;
-  line-height: 1;
 }
 
-.chevron.open {
-  transform: rotate(180deg);
+.markers-toggle.open::before {
+  transform: rotate(90deg);
+}
+
+@media (hover: hover) {
+  .markers-toggle:hover {
+    background-color: var(--color-background-soft);
+  }
+
+  .marker-row:hover .marker-name,
+  .view-all:hover {
+    color: var(--color-accent);
+    text-decoration: underline;
+  }
+}
+
+.view-all {
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
 }
 
 .markers-body {
   max-height: min(200px, 30vh);
   overflow-y: auto;
-  padding: 4px 12px 12px;
+  padding: 0 12px 8px;
 }
 
 .no-markers {
@@ -177,30 +200,41 @@ onUnmounted(() => {
 }
 
 .marker-item {
-  padding: 6px 0;
   border-bottom: 1px solid var(--color-border);
-  font-size: 14px;
+}
+
+.marker-item:last-child {
+  border-bottom: 0;
+}
+
+/* The whole row is the tap target, not just the name */
+.marker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  width: 100%;
+  padding: 6px 0;
+  border: 0;
+  background: none;
   color: var(--color-text);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
 }
 
-.marker-item-main {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
+.marker-name {
+  color: var(--color-heading);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.marker-coords {
-  background: var(--color-background-mute);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 13px;
-  word-break: break-all;
+.marker-row.current .marker-name {
+  color: var(--color-accent);
+  font-weight: bold;
 }
 
 .marker-motion {
@@ -213,58 +247,57 @@ onUnmounted(() => {
 }
 
 .marker-time {
+  margin-left: auto;
+  padding-left: 8px;
   font-size: 13px;
-  color: var(--color-text);
   white-space: nowrap;
 }
 
-.marker-name {
-  cursor: pointer;
-  color: var(--color-heading);
-  transition: color 0.2s;
+.marker-coords {
+  background: var(--color-background-mute);
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
-.marker-name:hover {
-  color: #42b983;
-  text-decoration: underline;
-}
-
-.marker-name.current {
-  color: #42b983;
-  font-weight: bold;
-}
-
-.view-all {
-  font-size: 14px;
-  font-weight: normal;
-  margin-left: 10px;
-  color: #42b983;
-  cursor: pointer;
-}
-
-.view-all:hover {
-  text-decoration: underline;
-}
-
-@media (max-width: 768px) {
+@container app (max-width: 768px) {
+  /* A drawer floating over the bottom of the map */
   .markers-info {
     position: absolute;
-    bottom: 6px;
-    left: 6px;
-    right: 6px;
+    bottom: calc(6px + env(safe-area-inset-bottom));
+    left: calc(6px + env(safe-area-inset-left));
+    right: calc(6px + env(safe-area-inset-right));
     margin-top: 0;
     border-radius: 12px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-    background: var(--color-background);
     z-index: 1000;
   }
 
-  .markers-header {
-    min-height: 44px;
+  .markers-toggle {
+    min-height: var(--touch-target);
+    font-size: 16px;
   }
 
-  .marker-item {
-    min-height: 44px;
+  .view-all {
+    min-height: var(--touch-target);
+    font-size: 15px;
+  }
+
+  .markers-body {
+    max-height: calc(40dvh - var(--touch-target));
+  }
+
+  .marker-row {
+    min-height: var(--touch-target);
+    align-content: center;
+    font-size: 15px;
+  }
+}
+
+/* Coordinates add little on a phone; name, motion and time fit one line */
+@container app (max-width: 480px) {
+  .marker-coords {
+    display: none;
   }
 }
 </style>
