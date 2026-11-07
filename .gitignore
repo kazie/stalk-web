@@ -32,3 +32,6 @@ coverage
 *.tsbuildinfo
 
 .env
+
+# nix-direnv
+.direnv/
