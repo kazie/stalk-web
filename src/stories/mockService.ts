@@ -202,7 +202,9 @@ export function setupMockEnvironment(options: MockScenarioOptions = {}): () => v
   }
 
   const initial = options.initialMarkers ?? SAMPLE_MARKERS
-  let currentMarkers = JSON.parse(JSON.stringify(initial)) as MarkerData[]
+  // Everyone, even in a single-target story, so "View All" from there still shows them all
+  const allMarkers = JSON.parse(JSON.stringify(initial)) as MarkerData[]
+  let currentMarkers = [...allMarkers]
 
   if (options.currentName) {
     const single = currentMarkers.find(
@@ -268,12 +270,14 @@ export function setupMockEnvironment(options: MockScenarioOptions = {}): () => v
           return
         }
         this.onopen?.(new Event('open'))
-        if (currentMarkers && currentMarkers.length > 0) {
-          for (const m of currentMarkers) {
-            this.onmessage?.(
-              new MessageEvent('message', { data: JSON.stringify({ type: 'update', ...m }) }),
-            )
-          }
+        // Like the real backend: /ws/coords/<name> sends only that person, /ws/coords everyone
+        const [, encodedName] = new URL(url).pathname.split('/ws/coords/')
+        const name = encodedName ? decodeURIComponent(encodedName).toLowerCase() : null
+        const targets = name ? allMarkers.filter((m) => m.name.toLowerCase() === name) : allMarkers
+        for (const m of targets) {
+          this.onmessage?.(
+            new MessageEvent('message', { data: JSON.stringify({ type: 'update', ...m }) }),
+          )
         }
       }, 50)
     }

@@ -77,7 +77,7 @@ This project includes Ladle stories for developers to visually preview, test, an
 To start the interactive Ladle stories dev server:
 
 ```bash
-pnpm ladle
+pnpm stories
 ```
 
 ### Available Stories

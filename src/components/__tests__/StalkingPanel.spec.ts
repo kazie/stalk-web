@@ -49,6 +49,72 @@ describe('StalkingPanel', () => {
     expect(wrapper.find('#stalking-send-rate option[value="1000"]').exists()).toBe(true)
   })
 
+  it('shows that the location is being sent while collapsed', async () => {
+    mocked.isStalking.value = true
+    const wrapper = mount(StalkingPanel)
+
+    const toggle = wrapper.find('.stalking-panel-toggle')
+    expect(toggle.find('.sending-dot').exists()).toBe(true)
+    expect(toggle.text()).toContain('Sending')
+  })
+
+  it('closes from the backdrop and with Escape, handing focus back to the toggle', async () => {
+    const wrapper = mount(StalkingPanel, { attachTo: document.body })
+    const toggle = wrapper.find('.stalking-panel-toggle')
+    await toggle.trigger('click')
+
+    await wrapper.find('.stalking-panel-backdrop').trigger('click')
+    expect(wrapper.find('.stalking-panel-content').exists()).toBe(false)
+    expect(document.activeElement).toBe(toggle.element)
+
+    await toggle.trigger('click')
+    ;(document.querySelector('#stalking-send-rate') as HTMLElement).focus()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.stalking-panel-content').exists()).toBe(false)
+    expect(document.activeElement).toBe(toggle.element)
+  })
+
+  it('moves focus into the panel when it opens', async () => {
+    const wrapper = mount(StalkingPanel, { attachTo: document.body })
+    const toggle = wrapper.find('.stalking-panel-toggle')
+    ;(document.activeElement as HTMLElement | null)?.blur()
+
+    await toggle.trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(document.activeElement).toBe(toggle.element)
+  })
+
+  it('keeps Tab inside the open sheet', async () => {
+    const wrapper = mount(StalkingPanel, { attachTo: document.body })
+    await wrapper.find('.stalking-panel-toggle').trigger('click')
+    const focusable = [
+      ...(wrapper.element as HTMLElement).querySelectorAll<HTMLElement>(
+        'button:not(:disabled), select, input',
+      ),
+    ]
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
+
+    last.focus()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }))
+    expect(document.activeElement).toBe(first)
+
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('leaves the panel open on Escape that ends an IME composition', async () => {
+    const wrapper = mount(StalkingPanel)
+    await wrapper.find('.stalking-panel-toggle').trigger('click')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', isComposing: true }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.stalking-panel-content').exists()).toBe(true)
+  })
+
   it('starts stalking through the main action', async () => {
     const wrapper = mount(StalkingPanel)
     await wrapper.find('.stalking-panel-toggle').trigger('click')

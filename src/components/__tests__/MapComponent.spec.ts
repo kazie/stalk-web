@@ -54,6 +54,10 @@ vi.mock('@/services/markerService', () => {
     currentZoomLevel: createMockRef(ZoomLevel.Medium),
     updateMode: createMockRef(UpdateMode.Live),
     ZoomLevel,
+    zoomLevelOptions: [
+      { level: ZoomLevel.Close, label: 'Close' },
+      { level: ZoomLevel.Medium, label: 'Medium' },
+    ],
     UpdateMode,
     // Polling APIs (kept for backward compatibility in tests)
     startFetching: vi.fn(),
@@ -150,6 +154,25 @@ describe('MapComponent', () => {
     expect(wrapper.find('.map').exists()).toBe(true)
   })
 
+  // The re-fit itself is covered in useMapMarkers.spec.ts; the mocked refs here aren't reactive
+  it('offers a re-center button only while free roaming, which follows the targets again', async () => {
+    const markerService = await import('@/services/markerService')
+
+    const following = mount(MapComponent)
+    await flushPromises()
+    expect(following.find('.recenter-btn').exists()).toBe(false)
+    following.unmount()
+
+    markerService.freeRoamingMode.value = true
+    const wrapper = mount(MapComponent)
+    await flushPromises()
+
+    const follow = wrapper.find('.recenter-btn')
+    expect(follow.text()).toBe('◎ Follow everyone')
+    await follow.trigger('click')
+    expect(markerService.freeRoamingMode.value).toBe(false)
+  })
+
   it('displays the markers list correctly', async () => {
     const wrapper = mount(MapComponent)
     await flushPromises()
@@ -179,23 +202,24 @@ describe('MapComponent', () => {
     expect(wrapper.vm.isMenuExpanded).toBe(false)
     expect(wrapper.find('.markers-info').classes()).toContain('collapsed')
 
-    // Click header to expand
-    await wrapper.find('.markers-header').trigger('click')
+    // Click the header button to expand
+    await wrapper.find('.markers-toggle').trigger('click')
     expect(wrapper.vm.isMenuExpanded).toBe(true)
     expect(wrapper.find('.markers-info').classes()).not.toContain('collapsed')
 
-    // Click menu toggle button to collapse
-    await wrapper.find('.menu-toggle-btn').trigger('click')
+    expect(wrapper.find('.markers-toggle').attributes('aria-expanded')).toBe('true')
+
+    // Click it again to collapse
+    await wrapper.find('.markers-toggle').trigger('click')
     expect(wrapper.vm.isMenuExpanded).toBe(false)
     expect(wrapper.find('.markers-info').classes()).toContain('collapsed')
   })
 
-  it('navigates when clicking on a marker name', async () => {
+  it('navigates when tapping anywhere on a marker row', async () => {
     const wrapper = mount(MapComponent)
     await flushPromises()
 
-    const firstMarkerName = wrapper.find('.marker-name')
-    await firstMarkerName.trigger('click')
+    await wrapper.find('.marker-coords').trigger('click')
 
     expect(mockRouterPush).toHaveBeenCalledWith('/Test Marker 1')
   })
@@ -215,6 +239,7 @@ describe('MapComponent', () => {
 
     // The free roaming toggle button should be disabled
     const freeRoamingButton = wrapper.find('.free-roaming-toggle')
+    expect(freeRoamingButton.attributes('aria-label')).toBe('Free roam')
     expect(freeRoamingButton.attributes('disabled')).toBeDefined()
     expect(freeRoamingButton.attributes('title')).toBe(
       'Free roaming is enforced when there are no markers',

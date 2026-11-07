@@ -1,10 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
-import { markers, freeRoamingMode, type MarkerData } from '@/services/markerService'
+import {
+  currentName,
+  currentZoomLevel,
+  freeRoamingMode,
+  markers,
+  ZoomLevel,
+  type MarkerData,
+} from '@/services/markerService'
 import { useMapMarkers } from '../useMapMarkers'
 
-type MapMock = { getBearing: Mock; handlers: Map<string, () => void> }
+type Handler = (event?: { type?: string; originalEvent?: unknown }) => void
+type MapMock = {
+  easeTo: Mock
+  fitBounds: Mock
+  getBearing: Mock
+  getZoom: Mock
+  handlers: Map<string, Handler>
+}
 
 // MapLibre needs WebGL, which jsdom lacks. The mocks keep the marker elements and popup content
 // that the composable builds, so the tests can check the real DOM.
@@ -19,7 +33,7 @@ vi.mock('maplibre-gl', () => {
   }
 
   const Map = vi.fn(function () {
-    const handlers = new globalThis.Map<string, () => void>()
+    const handlers = new globalThis.Map<string, Handler>()
     const map = chainable({
       addControl: vi.fn(),
       on: vi.fn(),
@@ -27,9 +41,10 @@ vi.mock('maplibre-gl', () => {
       easeTo: vi.fn(),
       fitBounds: vi.fn(),
       getBearing: vi.fn(),
+      getZoom: vi.fn(),
       remove: vi.fn(),
     })
-    map.on.mockImplementation((event: string, handler: () => void) => {
+    map.on.mockImplementation((event: string, handler: Handler) => {
       handlers.set(event, handler)
       return map
     })
@@ -79,9 +94,12 @@ vi.mock('maplibre-gl', () => {
 vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url', () => ({ default: 'worker.js' }))
 vi.mock('../mapStyles', () => ({ addStyleSwitcher: vi.fn() }))
 
+let recenter: () => void = () => {}
+
 const Host = defineComponent({
   setup() {
-    const { mapContainer, mapError } = useMapMarkers()
+    const { mapContainer, mapError, recenter: recenterMap } = useMapMarkers()
+    recenter = recenterMap
     return () => h('div', [h('div', { ref: mapContainer }), h('p', mapError.value ?? '')])
   },
 })
@@ -109,6 +127,8 @@ const markerParts = (index = 0) => {
 
 beforeEach(() => {
   freeRoamingMode.value = false
+  currentZoomLevel.value = ZoomLevel.Medium
+  currentName.value = null
 })
 
 afterEach(() => {
@@ -244,6 +264,160 @@ describe('useMapMarkers WebGL context', () => {
     map.handlers.get('webglcontextrestored')!()
     await nextTick()
     expect(wrapper.text()).not.toContain('lost its WebGL context')
+    wrapper.unmount()
+  })
+})
+
+describe('useMapMarkers following', () => {
+  const twoTargets = (): MarkerData[] => [
+    { name: 'a', latitude: 1, longitude: 2, timestamp: fresh() },
+    { name: 'b', latitude: 3, longitude: 4, timestamp: fresh() },
+  ]
+  const oneTarget = (): MarkerData[] => [
+    { name: 'solo', latitude: 1, longitude: 2, timestamp: fresh() },
+  ]
+  // MapLibre fires move (and zoom, when zooming) every frame; only user moves carry originalEvent
+  const userMove = (map: MapMock, type: 'move' | 'zoom' = 'move') =>
+    map.handlers.get(type)!({ type, originalEvent: new Event('pointerdown') })
+
+  it('stops following when the user moves the map, but not on its own moves', async () => {
+    const wrapper = await mountWithMarkers(twoTargets())
+    const map = maps[0]!
+
+    // Our own fitBounds/easeTo fire these without an originalEvent
+    map.handlers.get('move')!({ type: 'move' })
+    map.handlers.get('zoom')!({ type: 'zoom' })
+    expect(freeRoamingMode.value).toBe(false)
+
+    userMove(map)
+    expect(freeRoamingMode.value).toBe(true)
+
+    // Later updates leave the user's view alone
+    map.fitBounds.mockClear()
+    markers.value = twoTargets()
+    await nextTick()
+    expect(map.fitBounds).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('re-centers on all targets', async () => {
+    const wrapper = await mountWithMarkers(twoTargets())
+    const map = maps[0]!
+    userMove(map)
+    await nextTick()
+    map.fitBounds.mockClear()
+
+    recenter()
+    await nextTick()
+    expect(freeRoamingMode.value).toBe(false)
+    expect(map.fitBounds).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('follows again right away when free roaming is switched off in the toolbar', async () => {
+    const wrapper = await mountWithMarkers(twoTargets())
+    const map = maps[0]!
+    userMove(map)
+    await nextTick()
+    map.fitBounds.mockClear()
+
+    freeRoamingMode.value = false
+    await nextTick()
+    expect(map.fitBounds).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('keeps a pinch-zoomed level, snapped to the nearest preset, when re-centering one target', async () => {
+    const wrapper = await mountWithMarkers(oneTarget())
+    const map = maps[0]!
+    userMove(map, 'zoom')
+    map.getZoom.mockReturnValue(16.4)
+    await nextTick()
+    map.easeTo.mockClear()
+
+    recenter()
+    await nextTick()
+    expect(currentZoomLevel.value).toBe(ZoomLevel.Close)
+    expect(map.easeTo).toHaveBeenCalledTimes(1)
+    expect(map.easeTo).toHaveBeenCalledWith({ center: [2, 1], zoom: ZoomLevel.Close })
+    wrapper.unmount()
+  })
+
+  it('snaps to presets the toolbar offers, never the starting country view', async () => {
+    const wrapper = await mountWithMarkers(oneTarget())
+    const map = maps[0]!
+    userMove(map, 'zoom')
+    map.getZoom.mockReturnValue(2.5)
+    await nextTick()
+
+    recenter()
+    await nextTick()
+    expect(currentZoomLevel.value).toBe(ZoomLevel.VeryFar)
+    wrapper.unmount()
+  })
+
+  it('keeps the chosen zoom level after a drag without zooming', async () => {
+    const wrapper = await mountWithMarkers(oneTarget())
+    const map = maps[0]!
+    // Interrupted mid-ease, so the map's zoom is somewhere between levels
+    userMove(map)
+    map.getZoom.mockReturnValue(11.2)
+    await nextTick()
+    map.easeTo.mockClear()
+
+    recenter()
+    await nextTick()
+    expect(currentZoomLevel.value).toBe(ZoomLevel.Medium)
+    expect(map.easeTo).toHaveBeenCalledWith({ center: [2, 1], zoom: ZoomLevel.Medium })
+    wrapper.unmount()
+  })
+
+  it('lets a zoom level picked while roaming win over an earlier pinch', async () => {
+    const wrapper = await mountWithMarkers(oneTarget())
+    const map = maps[0]!
+    userMove(map, 'zoom')
+    map.getZoom.mockReturnValue(16.4)
+    await nextTick()
+    map.easeTo.mockClear()
+
+    currentZoomLevel.value = ZoomLevel.Far
+    await nextTick()
+    // Still roaming: the map stays put
+    expect(map.easeTo).not.toHaveBeenCalled()
+
+    recenter()
+    await nextTick()
+    expect(map.easeTo).toHaveBeenLastCalledWith({ center: [2, 1], zoom: ZoomLevel.Far })
+    wrapper.unmount()
+  })
+
+  it('applies a zoom level picked in the toolbar right away while following', async () => {
+    const wrapper = await mountWithMarkers(oneTarget())
+    const map = maps[0]!
+    map.easeTo.mockClear()
+
+    currentZoomLevel.value = ZoomLevel.Close
+    await nextTick()
+    expect(map.easeTo).toHaveBeenCalledWith({ center: [2, 1], zoom: ZoomLevel.Close })
+    wrapper.unmount()
+  })
+
+  it('follows again when another target is picked, fitting once their markers arrive', async () => {
+    const wrapper = await mountWithMarkers(twoTargets())
+    const map = maps[0]!
+    userMove(map)
+    await nextTick()
+    map.fitBounds.mockClear()
+
+    currentName.value = 'solo'
+    expect(freeRoamingMode.value).toBe(false)
+    await nextTick()
+    // The old markers are still showing: no detour to them
+    expect(map.fitBounds).not.toHaveBeenCalled()
+
+    markers.value = oneTarget()
+    await nextTick()
+    expect(map.easeTo).toHaveBeenLastCalledWith({ center: [2, 1], zoom: ZoomLevel.Medium })
     wrapper.unmount()
   })
 })

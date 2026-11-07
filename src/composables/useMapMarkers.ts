@@ -11,10 +11,13 @@ import {
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { parseISO } from 'date-fns'
 import {
+  currentName,
   currentZoomLevel,
   freeRoamingMode,
   markers,
+  setZoomLevel,
   ZoomLevel,
+  zoomLevelOptions,
   type MarkerData,
 } from '@/services/markerService'
 import { formatMotion, motionState, shortestRotation, type MotionState } from '@/services/motion'
@@ -138,6 +141,12 @@ const createMarker = (data: MarkerData, bearing: number): MarkerRecord => {
   }
 }
 
+// The toolbar preset closest to a free zoom, so a pinch-zoomed view survives re-centering
+const nearestZoomLevel = (zoom: number): ZoomLevel =>
+  zoomLevelOptions
+    .map((option) => option.level)
+    .reduce((best, level) => (Math.abs(level - zoom) < Math.abs(best - zoom) ? level : best))
+
 const sameMotion = (a: MotionState | null, b: MotionState): boolean =>
   a !== null && a.speedText === b.speedText && a.heading === b.heading
 
@@ -169,6 +178,9 @@ export const useMapMarkers = () => {
   const mapContainer = ref<HTMLElement | null>(null)
   const mapError = ref<string | null>(null)
   let autoEnforcedFreeRoaming = false
+  // The next stop of free roaming must not re-fit: the update that stops it fits already, or the
+  // markers it needs are still on their way
+  let skipRefit = false
   let map: MapLibreMap | null = null
   const markerByName = new Map<string, MarkerRecord>()
   let popupUpdateTimer: ReturnType<typeof setTimeout> | null = null
@@ -213,6 +225,7 @@ export const useMapMarkers = () => {
         autoEnforcedFreeRoaming = true
       }
     } else if (autoEnforcedFreeRoaming && freeRoamingMode.value) {
+      skipRefit = true
       freeRoamingMode.value = false
       autoEnforcedFreeRoaming = false
     }
@@ -270,6 +283,65 @@ export const useMapMarkers = () => {
 
   watch(markers, updateMapMarkers, { deep: true })
 
+  // The user zoomed (pinch, wheel, +/- buttons) since following stopped
+  let userZoomed = false
+
+  // Moving the map by hand stops following the targets, so the next update doesn't snap it back.
+  // Every frame of a user's move carries originalEvent (drag, pinch, wheel, keyboard, the zoom
+  // and compass buttons); our own easeTo/fitBounds don't.
+  const onUserMove = (event: { type: string; originalEvent?: unknown }): void => {
+    if (!event.originalEvent || markers.value.length === 0) return
+    if (event.type === 'zoom') userZoomed = true
+    autoEnforcedFreeRoaming = false
+    freeRoamingMode.value = true
+  }
+
+  // Follow the targets again. A single target keeps a pinch-zoomed level, as the nearest preset.
+  const resumeFollowing = (): void => {
+    const keepZoom = userZoomed && markers.value.length === 1
+    userZoomed = false
+    if (map && keepZoom) {
+      const level = nearestZoomLevel(map.getZoom())
+      if (level !== currentZoomLevel.value) {
+        setZoomLevel(level) // its watcher re-fits
+        return
+      }
+    }
+    updateMapMarkers()
+  }
+
+  // Covers the Follow button and the toolbar toggle alike
+  watch(freeRoamingMode, (roaming) => {
+    if (roaming) return
+    if (skipRefit) skipRefit = false
+    else resumeFollowing()
+  })
+
+  // A zoom level picked in the toolbar applies right away, and wins over an earlier pinch
+  watch(currentZoomLevel, () => {
+    userZoomed = false
+    if (!freeRoamingMode.value) updateMapMarkers()
+  })
+
+  // Picking another target (or everyone) follows again. Sync, so it's in place before the new
+  // markers arrive; they do the fit.
+  watch(
+    currentName,
+    () => {
+      userZoomed = false
+      if (!freeRoamingMode.value || autoEnforcedFreeRoaming) return
+      skipRefit = true
+      freeRoamingMode.value = false
+    },
+    { flush: 'sync' },
+  )
+
+  // Re-fits even when already following, e.g. after tapping the current target
+  const recenter = (): void => {
+    if (freeRoamingMode.value) freeRoamingMode.value = false
+    else resumeFollowing()
+  }
+
   const createMap = (container: HTMLElement): MapLibreMap | null => {
     try {
       return new MapLibreMap({ container, center: [15, 62], zoom: ZoomLevel.CountryFar })
@@ -290,6 +362,8 @@ export const useMapMarkers = () => {
     map.addControl(new NavigationControl({ visualizePitch: true }), 'top-left')
     addStyleSwitcher(map)
     map.on('rotate', syncBearing)
+    map.on('move', onUserMove)
+    map.on('zoom', onUserMove)
     // A lost context (GPU reset, driver crash, too many tabs) leaves a blank map.
     map.on('webglcontextlost', () => {
       mapError.value = CONTEXT_LOST_ERROR
@@ -310,5 +384,5 @@ export const useMapMarkers = () => {
     map = null
   })
 
-  return { mapContainer, mapError }
+  return { mapContainer, mapError, recenter }
 }

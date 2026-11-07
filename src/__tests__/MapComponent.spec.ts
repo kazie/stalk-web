@@ -6,6 +6,7 @@ import * as markerService from '../services/markerService'
 
 // Mock the vue-router
 const mockRouterPush = vi.fn()
+const mockRecenter = vi.fn()
 vi.mock('vue-router', () => ({
   useRouter: vi.fn(() => ({
     push: mockRouterPush,
@@ -14,7 +15,7 @@ vi.mock('vue-router', () => ({
 
 // The map needs WebGL, which jsdom lacks; these tests cover updates and routing.
 vi.mock('../composables/useMapMarkers', () => ({
-  useMapMarkers: () => ({ mapContainer: ref(null), mapError: ref(null) }),
+  useMapMarkers: () => ({ mapContainer: ref(null), mapError: ref(null), recenter: mockRecenter }),
 }))
 
 // Mock the markerService
@@ -201,6 +202,17 @@ describe('MapComponent', () => {
       await wrapper.vm.navigateTo(null)
 
       expect(mockRouterPush).toHaveBeenCalledWith('/')
+    })
+
+    it('re-centers instead of navigating when picking the current target', async () => {
+      mockRouterPush.mockReset()
+      markerService.currentName.value = 'test'
+
+      const wrapper = mount(MapComponent, { props: { name: 'test' } })
+      await wrapper.vm.navigateTo('test')
+
+      expect(mockRouterPush).not.toHaveBeenCalled()
+      expect(mockRecenter).toHaveBeenCalledTimes(1)
     })
   })
 })

@@ -17,7 +17,7 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
     "format": "prettier --write src/",
-    "ladle": "ladle serve"
+    "stories": "ladle serve"
   },
   "dependencies": {
     "date-fns": "^4.4.0",

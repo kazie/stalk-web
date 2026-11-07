@@ -109,14 +109,26 @@ export const MobileView: Story = () => {
           <span>5G 100%</span>
         </div>
 
-        <MapStory
-          options={{
-            mock: {
-              initialMarkers: SAMPLE_MARKERS,
-              freeRoaming: false,
-            },
+        {/* The transform keeps the app's position: fixed elements (stalking pill and sheet)
+            inside the screen area, below the status bar */}
+        <div
+          style={{
+            flex: '1 1 0%',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            transform: 'translateZ(0)',
           }}
-        />
+        >
+          <MapStory
+            options={{
+              mock: {
+                initialMarkers: SAMPLE_MARKERS,
+                freeRoaming: false,
+              },
+            }}
+          />
+        </div>
       </div>
     </div>
   )

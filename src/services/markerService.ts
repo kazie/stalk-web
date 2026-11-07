@@ -42,6 +42,14 @@ export enum ZoomLevel {
   CountryFar = 3,
 }
 
+// The zoom levels the toolbar offers. CountryFar is only the map's starting view.
+export const zoomLevelOptions: readonly { level: ZoomLevel; label: string }[] = [
+  { level: ZoomLevel.Close, label: 'Close' },
+  { level: ZoomLevel.Medium, label: 'Medium' },
+  { level: ZoomLevel.Far, label: 'Far' },
+  { level: ZoomLevel.VeryFar, label: 'Very Far' },
+]
+
 // Create reactive state for the free roaming mode, update frequency, and zoom level
 export const freeRoamingMode = ref(false)
 export const updateFrequency = ref(5000) // Default to 5 seconds

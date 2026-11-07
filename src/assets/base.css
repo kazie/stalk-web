@@ -33,7 +33,14 @@
   --color-heading: var(--vt-c-text-light-1);
   --color-text: var(--vt-c-text-light-1);
 
-  --section-gap: 160px;
+  --color-accent: #42b983;
+  --color-danger: #c62828;
+  --color-danger-text: var(--color-danger);
+  --color-danger-bg: #ffebee;
+  --color-success-text: #287a55;
+
+  /* Minimum size of anything tapped on a touch screen */
+  --touch-target: 44px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,6 +54,10 @@
 
     --color-heading: var(--vt-c-text-dark-1);
     --color-text: var(--vt-c-text-dark-2);
+
+    --color-danger-text: #ff8a80;
+    --color-danger-bg: color-mix(in srgb, var(--color-danger) 20%, transparent);
+    --color-success-text: #6fd3a5;
   }
 }
 

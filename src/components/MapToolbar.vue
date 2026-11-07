@@ -12,6 +12,7 @@ import {
   updateMode,
   UpdateMode,
   ZoomLevel,
+  zoomLevelOptions,
 } from '@/services/markerService'
 
 defineProps<{
@@ -51,54 +52,68 @@ const onZoomChange = (): void => {
   <div class="header-controls">
     <h2>Stalking... {{ currentName || 'everyone' }}</h2>
     <div class="controls">
-      <label v-if="updateMode !== UpdateMode.Live" for="refresh-rate">🔄</label>
-      <select
-        v-if="updateMode !== UpdateMode.Live"
-        class="frequency-dropdown"
-        :value="updateFrequency"
-        @change="(e: Event) => setUpdateFrequency(Number((e.target as HTMLSelectElement).value))"
-      >
-        <option value="1000">1s</option>
-        <option value="5000">5s</option>
-        <option value="10000">10s</option>
-        <option value="30000">30s</option>
-      </select>
-      <label for="mode">📡</label>
       <button
-        class="live-toggle"
-        @click="setUpdateMode(updateMode === UpdateMode.Live ? UpdateMode.Poll : UpdateMode.Live)"
+        class="tool toggle live-toggle"
+        type="button"
         :class="{ active: updateMode === UpdateMode.Live }"
+        :aria-pressed="updateMode === UpdateMode.Live"
         :title="updateMode === UpdateMode.Live ? 'LIVE enabled' : 'LIVE disabled (Polling)'"
+        @click="setUpdateMode(updateMode === UpdateMode.Live ? UpdateMode.Poll : UpdateMode.Live)"
       >
-        LIVE
+        <span aria-hidden="true">📡</span> LIVE
       </button>
-      <label for="zoom-level">🔍</label>
-      <select
-        id="zoom-level"
-        ref="zoomSelectEl"
-        class="zoom-dropdown"
-        v-model.number="selectedZoom"
-        @focus="onZoomFocus"
-        @pointerdown="onZoomPointerDown"
-        @touchstart="onZoomPointerDown"
-        @blur="onZoomBlur"
-        @change="onZoomChange"
-        v-memo="[selectedZoom, isZoomInteracting]"
-      >
-        <option :value="ZoomLevel.Close">Close</option>
-        <option :value="ZoomLevel.Medium">Medium</option>
-        <option :value="ZoomLevel.Far">Far</option>
-        <option :value="ZoomLevel.VeryFar">Very Far</option>
-      </select>
-      <label for="free-roaming-mode">️️🗺️</label>
+      <div v-if="updateMode !== UpdateMode.Live" class="control">
+        <label for="refresh-rate">
+          <span class="control-icon" aria-hidden="true">🔄</span>
+          <span class="visually-hidden">Refresh rate</span>
+        </label>
+        <select
+          id="refresh-rate"
+          class="tool frequency-dropdown"
+          :value="updateFrequency"
+          @change="(e: Event) => setUpdateFrequency(Number((e.target as HTMLSelectElement).value))"
+        >
+          <option value="1000">1s</option>
+          <option value="5000">5s</option>
+          <option value="10000">10s</option>
+          <option value="30000">30s</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="zoom-level">
+          <span class="control-icon" aria-hidden="true">🔍</span>
+          <span class="visually-hidden">Zoom level</span>
+        </label>
+        <select
+          id="zoom-level"
+          ref="zoomSelectEl"
+          class="tool zoom-dropdown"
+          v-model.number="selectedZoom"
+          @focus="onZoomFocus"
+          @pointerdown="onZoomPointerDown"
+          @touchstart="onZoomPointerDown"
+          @blur="onZoomBlur"
+          @change="onZoomChange"
+          v-memo="[selectedZoom, isZoomInteracting]"
+        >
+          <option v-for="option in zoomLevelOptions" :key="option.level" :value="option.level">
+            {{ option.label }}
+          </option>
+        </select>
+      </div>
       <button
-        class="free-roaming-toggle"
-        @click="toggleFreeRoamingMode"
+        class="tool toggle free-roaming-toggle"
+        type="button"
+        aria-label="Free roam"
         :class="{ active: freeRoamingMode }"
+        :aria-pressed="freeRoamingMode"
         :disabled="markers.length === 0"
-        :title="markers.length === 0 ? 'Free roaming is enforced when there are no markers' : ''"
+        :title="
+          markers.length === 0 ? 'Free roaming is enforced when there are no markers' : 'Free roam'
+        "
+        @click="toggleFreeRoamingMode"
       >
-        {{ freeRoamingMode ? 'ON' : 'OFF' }}
+        <span aria-hidden="true">🗺️</span>
       </button>
     </div>
   </div>
@@ -109,60 +124,103 @@ const onZoomChange = (): void => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
   flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 12px;
 }
 
 h2 {
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  margin-right: 16px;
+  margin: 0;
+  min-width: 0;
+  color: var(--color-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 6px 10px;
 }
 
-.frequency-dropdown,
-.zoom-dropdown,
-.mode-dropdown {
+.control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Every menu and button in the toolbar */
+.tool {
   padding: 6px 10px;
   border-radius: 4px;
-  border: 1px solid #ccc;
-  background-color: #fff;
+  border: 1px solid var(--color-border-hover);
+  background-color: var(--color-background-soft);
+  color: var(--color-heading);
+  font: inherit;
   font-size: 14px;
   cursor: pointer;
 }
 
-.free-roaming-toggle,
-.live-toggle {
+.toggle {
   padding: 6px 12px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  background-color: #f5f5f5;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s;
 }
 
-.free-roaming-toggle:hover,
-.live-toggle:hover {
-  background-color: #e0e0e0;
+@media (hover: hover) {
+  .toggle:not(:disabled, .active):hover {
+    background-color: var(--color-background-mute);
+  }
 }
 
-.free-roaming-toggle.active,
-.live-toggle.active {
-  background-color: #42b983;
+.toggle.active {
+  background-color: var(--color-accent);
   color: white;
-  border-color: #42b983;
+  border-color: var(--color-accent);
 }
 
 .free-roaming-toggle:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  background-color: #f0f0f0;
+}
+
+@container app (max-width: 768px) {
+  .header-controls {
+    gap: 6px;
+    margin: 0;
+    padding: calc(8px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 8px
+      calc(12px + env(safe-area-inset-left));
+  }
+
+  /* Full row, leaving room for the fixed "Stalk me" button in the top-right corner */
+  h2 {
+    flex: 1 1 100%;
+    min-height: 40px;
+    line-height: 40px;
+    padding-right: 128px;
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  /* 16px stops iOS zooming in on focus; 44px is a comfortable touch target */
+  .tool {
+    min-height: var(--touch-target);
+    font-size: 16px;
+  }
+
+  .free-roaming-toggle {
+    min-width: var(--touch-target);
+  }
+
+  /* Keeps the toolbar on one row; "5s" and "Medium" say what the menus are, and screen readers
+     still get the labels */
+  .control-icon {
+    display: none;
+  }
+
+  .control {
+    gap: 0;
+  }
 }
 </style>
