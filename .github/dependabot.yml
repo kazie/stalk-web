@@ -74,3 +74,20 @@ updates:
     labels:
       - "dependencies"
       - "legacy"
+
+  # flake.lock inputs (nixpkgs) for the dev shell, on both branches.
+  - package-ecosystem: "nix"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "nix"
+    directory: "/"
+    target-branch: "legacy"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "legacy"
