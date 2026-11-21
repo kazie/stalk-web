@@ -2,6 +2,9 @@ name: Dependabot needs attention
 
 # When CI or Nix fails on a Dependabot PR (on master or legacy), its auto-merge will never go through, so
 # the PR is assigned to the repo owner: the assignment is the notification that a person is needed.
+# Only while the failed commit is still the PR's head: a failure on a commit that has since been replaced
+# (a rebase, a fix pushed by a workflow) needs nobody. The PR is looked up by branch and commit, because a
+# re-run started by workflow_dispatch carries no PR number.
 # workflow_run always runs this file from the default branch, so legacy needs no copy.
 on:
   workflow_run:
@@ -15,16 +18,20 @@ permissions:
 jobs:
   assign:
     if: >-
-      github.event.workflow_run.event == 'pull_request' &&
+      (github.event.workflow_run.event == 'pull_request' ||
+       github.event.workflow_run.event == 'workflow_dispatch') &&
       github.event.workflow_run.conclusion == 'failure' &&
       startsWith(github.event.workflow_run.head_branch, 'dependabot/')
     runs-on: ubuntu-24.04
     env:
-      PRS: ${{ join(github.event.workflow_run.pull_requests.*.number, ' ') }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
       OWNER: ${{ github.repository_owner }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - run: |
-          for pr in $PRS; do
+          prs=$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&head=$OWNER:$BRANCH" \
+            -q '.[] | select(.head.sha == env.SHA) | .number')
+          for pr in $prs; do
             gh api "repos/$GITHUB_REPOSITORY/issues/$pr/assignees" -f "assignees[]=$OWNER" --silent
           done
