@@ -37,11 +37,15 @@ jobs:
           echo "typescript=$(node -p "require('typescript/package.json').version")" >> "$GITHUB_OUTPUT"
           echo "vue-tsc=$(node -p "require('vue-tsc/package.json').version")" >> "$GITHUB_OUTPUT"
 
+      # Expected to fail until vue-tsc supports the new major. continue-on-error keeps that from failing
+      # the run (and emailing every month); the issue below is the only notification.
       - name: Type-check
+        id: typecheck
+        continue-on-error: true
         run: pnpm type-check
 
       - name: Open issue
-        if: ${{ !startsWith(steps.versions.outputs.typescript, '6.') }}
+        if: ${{ steps.typecheck.outcome == 'success' && !startsWith(steps.versions.outputs.typescript, '6.') }}
         env:
           GH_TOKEN: ${{ github.token }}
           TS_VERSION: ${{ steps.versions.outputs.typescript }}
@@ -49,7 +53,7 @@ jobs:
         run: |
           title="TypeScript $TS_VERSION now works with vue-tsc"
           if [ -z "$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[].number')" ]; then
-            gh issue create --title "$title" --body "The TypeScript canary passed with typescript@$TS_VERSION and vue-tsc@$VUE_TSC_VERSION.
+            gh issue create --title "$title" --assignee "$GITHUB_REPOSITORY_OWNER" --body "The TypeScript canary passed with typescript@$TS_VERSION and vue-tsc@$VUE_TSC_VERSION.
 
           Remove the typescript ignore in \`.github/dependabot.yml\` and upgrade. Once done, this canary workflow can be deleted (or kept for the next major)."
           fi

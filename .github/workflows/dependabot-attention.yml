@@ -1,0 +1,30 @@
+name: Dependabot needs attention
+
+# When CI or Nix fails on a Dependabot PR (on master or legacy), its auto-merge will never go through, so
+# the PR is assigned to the repo owner: the assignment is the notification that a person is needed.
+# workflow_run always runs this file from the default branch, so legacy needs no copy.
+on:
+  workflow_run:
+    workflows: [ CI, Nix ]
+    types: [ completed ]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  assign:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'failure' &&
+      startsWith(github.event.workflow_run.head_branch, 'dependabot/')
+    runs-on: ubuntu-24.04
+    env:
+      PRS: ${{ join(github.event.workflow_run.pull_requests.*.number, ' ') }}
+      OWNER: ${{ github.repository_owner }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - run: |
+          for pr in $PRS; do
+            gh api "repos/$GITHUB_REPOSITORY/issues/$pr/assignees" -f "assignees[]=$OWNER" --silent
+          done
